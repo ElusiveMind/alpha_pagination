@@ -478,11 +478,9 @@ class alpha_pagination_handler_pagination extends views_handler_area {
     if ($language->language == 'ar') {
       $items = array('ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','و','ه','ي');
     }
-    
-    $items[] = 'all';
 
     // Append or prepend numeric items.
-    if ($this->options['paginate_view_numbers']) {
+    if (!empty($this->options['paginate_view_numbers'])) {
       if ($this->options['paginate_numeric_position'] === 'after') {
         $items =  array_merge($items, range('0', '9'));
       }
@@ -494,7 +492,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
     // Append or prepend the "all" item.
     if (!empty($this->options['paginate_all_display'])) {
       if ($this->options['paginate_all_position'] === 'before') {
-        $items =  array_merge(array('all'), $items);
+        $items = array_merge(array('all'), $items);
       }
       else {
         $items[] =  'all';
