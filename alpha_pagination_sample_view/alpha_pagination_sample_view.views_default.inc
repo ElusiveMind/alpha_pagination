@@ -33,7 +33,15 @@ function alpha_pagination_sample_view_views_default_views() {
   $handler->display->display_options['style_plugin'] = 'default';
   $handler->display->display_options['row_plugin'] = 'fields';
   /* Header: Global: Alpha Pagination */
+  $handler->display->display_options['header']['alpha_pagination']['id'] = 'alpha_pagination';
+  $handler->display->display_options['header']['alpha_pagination']['table'] = 'views';
+  $handler->display->display_options['header']['alpha_pagination']['field'] = 'alpha_pagination';
+  $handler->display->display_options['header']['alpha_pagination']['label'] = 'Alpha Pagination Sample';
+  $handler->display->display_options['header']['alpha_pagination']['empty'] = TRUE;
   $handler->display->display_options['header']['alpha_pagination']['pre_letter_path'] = 'alpha-pagination-sample';
+  $handler->display->display_options['header']['alpha_pagination']['paginate_list_class'] = 'alpha-pagination-example';
+  $handler->display->display_options['header']['alpha_pagination']['paginate_all_display'] = '1';
+  $handler->display->display_options['header']['alpha_pagination']['paginate_view_numbers'] = '1';
   /* Field: Content: Title */
   $handler->display->display_options['fields']['title']['id'] = 'title';
   $handler->display->display_options['fields']['title']['table'] = 'node';
@@ -65,6 +73,7 @@ function alpha_pagination_sample_view_views_default_views() {
   $handler->display->display_options['arguments']['title']['summary_options']['items_per_page'] = '25';
   $handler->display->display_options['arguments']['title']['glossary'] = TRUE;
   $handler->display->display_options['arguments']['title']['limit'] = '1';
+  $handler->display->display_options['arguments']['title']['case'] = 'upper';
   $handler->display->display_options['arguments']['title']['path_case'] = 'upper';
   /* Filter criterion: Content: Published */
   $handler->display->display_options['filters']['status']['id'] = 'status';

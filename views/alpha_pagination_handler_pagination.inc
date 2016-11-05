@@ -4,9 +4,9 @@
  * @file
  * Definition of alpha_pagination_handler_pagination.
  *
- * @author Michael R. Bagnall
+ * @author Michael R. Bagnall (@mbagnall17)
  * @version 1.0
- * @copyright 2015 FlyingFlip Studios, LLC.
+ * @copyright 2015 FlyingFlip Studios, LLC. (@flyingflip)
  * @link http://www.michaelbagnall.com
  * @file alpha_pagination_handler_pagination.inc
  *
@@ -77,6 +77,10 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       'default' => 'after',
       'translatable' => FALSE,
     );
+    $options['paginate_toggle_empty'] = array(
+      'default' => 1,
+      'translatable' => FALSE,
+    );
 
     // Numeric.
     $options['paginate_view_numbers'] = array(
@@ -143,7 +147,12 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       '#default_value' => $this->options['paginate_view_field'],
       '#description' => t('This will be the content field that drives the pagination.'),
     );
-
+    $form['paginate_toggle_empty'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Show options without results'),
+      '#default_value' => $this->options['paginate_toggle_empty'],
+      '#description' => t('Show or hide letters without results'),
+    );
 
     // Class options.
     $form['paginate_classes'] = array(
@@ -306,99 +315,101 @@ class alpha_pagination_handler_pagination extends views_handler_area {
    *   A string representing the complete paginator including linked and unlinked options.
    */
   function render($empty = FALSE) {
-  // Create the wrapper.
-  $wrapper = array(
-    '#theme_wrappers' => array('container__alpha_pagination__wrapper'),
-    '#attributes' => array(),
-    '#attached' => array(
-      'library' => array(
-        array('alpha_pagination', 'alpha_pagination'),
-      )
-    ),
-  );
-  $this->addOptionClasses('paginate_class', $wrapper['#attributes']);
+    // Create the wrapper.
+    $wrapper = array(
+      '#theme_wrappers' => array('container__alpha_pagination__wrapper'),
+      '#attributes' => array(),
+      '#attached' => array(
+        'library' => array(
+          array('alpha_pagination', 'alpha_pagination'),
+        )
+      ),
+    );
+    $this->addOptionClasses('paginate_class', $wrapper['#attributes']);
 
-  // Account for an argument-less call to the page.
-  if (empty($this->view->args)) {
-    $this->view->args[0] = 'all';
+    // Account for an argument-less call to the page.
+    if (empty($this->view->args)) {
+      $this->view->args[0] = 'all';
+    }
+
+    $all_label = !empty($this->options['paginate_all_label']) ? t(check_plain($this->options['paginate_all_label'])) : t('All');
+
+    // Iterate over the alphabet and populate the items for the item list.
+    $items = array();
+    foreach ($this->getItems() as $key => $is_link) {
+      $all = drupal_strtolower($key) === 'all';
+      $numeric = is_numeric($key);
+      $active = (string) $key === (string) $this->view->args[0];
+      $is_link = !$active && ($all || $is_link);
+      $label = $all ? $all_label : t(drupal_ucfirst($key));
+
+      // Theme link item.
+      if ($is_link) {
+        $item_data = array(
+        '#theme' => 'link__alpha_pagination__' . drupal_html_class($key),
+        '#text' => $label,
+        '#path' => sprintf('%s/%s', $this->options['pre_letter_path'], $key),
+        '#options' => array(
+          'attributes' => array(),
+          'html' => FALSE
+          ),
+        );
+        $this->addOptionClasses('paginate_link_class', $item_data['#options']['attributes']);
+      }
+      // Theme non-link item (a.k.a "inactive").
+      //
+      // Some themes require text that's in a "pagination" list to be wrapped
+      // in another element. Typically, this would be a link, like above,
+      // however since this is an inactive option, it should be wrapped in a
+      // themeable element that can be targeted by preprocessors if needed.
+      elseif ($this->options['paginate_toggle_empty'] || $all || $active) {
+        $item_data = array(
+          '#type' => 'html_tag',
+          '#theme' => 'html_tag__alpha_pagination__inactive',
+          '#tag' => 'span',
+          '#value' => $label,
+        );
+      }
+
+      if (!empty($item_data)) {
+        // Unfortunately, the implementation of item_list in D7 core does not
+        // allow render arrays to be passed as data and requires premature
+        // rendering here.
+        // @todo In D8, pass the render array directly since it can process it.
+        $item = array('data' => drupal_render($item_data));
+
+        // Add the necessary classes for item.
+        if ($all) {
+          $this->addOptionClasses('paginate_all_class', $item);
+        }
+        if ($numeric) {
+          $this->addOptionClasses('paginate_numeric_class', $item);
+        }
+        if ($active) {
+          $this->addOptionClasses('paginate_active_class', $item);
+        }
+        elseif (!$is_link) {
+          $this->addOptionClasses('paginate_inactive_class', $item);
+        }
+
+        // Add the constructed item to the list.
+        $items[] = $item;
+      }
+    }
+
+    // Sanitize any classes provided for the item list.
+    $item_list = array(
+      '#theme' => 'item_list__alpha_pagination',
+      '#attributes' => array(),
+      '#items' => $items,
+    );
+    $this->addOptionClasses('paginate_list_class', $item_list['#attributes']);
+
+    // Append the item list to the wrapper.
+    $wrapper[] = $item_list;
+
+    return drupal_render($wrapper);
   }
-
-  $all_label = !empty($this->options['paginate_all_label']) ? t(check_plain($this->options['paginate_all_label'])) : t('All');
-
-  // Iterate over the alphabet and populate the items for the item list.
-  $items = array();
-  foreach ($this->getItems() as $key => $is_link) {
-     $all = drupal_strtolower($key) === 'all';
-     $numeric = is_numeric($key);
-     $active = (string) $key === (string) $this->view->args[0];
-     $is_link = !$active && ($all || $is_link);
-     $label = $all ? $all_label : t(drupal_ucfirst($key));
-
-     // Theme link item.
-     if ($is_link) {
-       $item_data = array(
-         '#theme' => 'link__alpha_pagination__' . drupal_html_class($key),
-         '#text' => $label,
-         '#path' => sprintf('%s/%s', $this->options['pre_letter_path'], $key),
-         '#options' => array(
-           'attributes' => array(),
-           'html' => FALSE
-         ),
-       );
-       $this->addOptionClasses('paginate_link_class', $item_data['#options']['attributes']);
-     }
-     // Theme non-link item (a.k.a "inactive").
-     //
-     // Some themes require text that's in a "pagination" list to be wrapped
-     // in another element. Typically, this would be a link, like above,
-     // however since this is an inactive option, it should be wrapped in a
-     // themeable element that can be targeted by preprocessors if needed.
-     else {
-       $item_data = array(
-         '#type' => 'html_tag',
-         '#theme' => 'html_tag__alpha_pagination__inactive',
-         '#tag' => 'span',
-         '#value' => $label,
-       );
-     }
-
-     // Unfortunately, the implementation of item_list in D7 core does not
-     // allow render arrays to be passed as data and requires premature
-     // rendering here.
-     // @todo In D8, pass the render array directly since it can process it.
-     $item = array('data' => drupal_render($item_data));
-
-     // Add the necessary classes for item.
-     if ($all) {
-       $this->addOptionClasses('paginate_all_class', $item);
-     }
-     if ($numeric) {
-       $this->addOptionClasses('paginate_numeric_class', $item);
-     }
-     if ($active) {
-       $this->addOptionClasses('paginate_active_class', $item);
-     }
-     elseif (!$is_link) {
-       $this->addOptionClasses('paginate_inactive_class', $item);
-     }
-
-     // Add the constructed item to the list.
-     $items[] = $item;
-   }
-
-   // Sanitize any classes provided for the item list.
-   $item_list = array(
-     '#theme' => 'item_list__alpha_pagination',
-     '#attributes' => array(),
-     '#items' => $items,
-   );
-   $this->addOptionClasses('paginate_list_class', $item_list['#attributes']);
-
-   // Append the item list to the wrapper.
-   $wrapper[] = $item_list;
-
-   return drupal_render($wrapper);
- }
 
  /**
   * Add classes to an attributes array from a view option.
@@ -481,7 +492,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
     }
 
     // Append or prepend the "all" item.
-    if ($this->options['paginate_all_display']) {
+    if (!empty($this->options['paginate_all_display'])) {
       if ($this->options['paginate_all_position'] === 'before') {
         $items =  array_merge(array('all'), $items);
       }
