@@ -341,7 +341,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       $numeric = is_numeric($key);
       $active = (string) $key === (string) $this->view->args[0];
       $is_link = !$active && ($all || $is_link);
-      $label = $all ? $all_label : t(drupal_ucfirst($key));
+      $label = $all ? $all_label : drupal_ucfirst($key);
 
       // Theme link item.
       if ($is_link) {
