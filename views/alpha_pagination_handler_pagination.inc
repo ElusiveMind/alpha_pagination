@@ -281,6 +281,12 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       '#fieldset' => 'paginate_numeric_options',
     );
   }
+  /**
+   * {@inheritdoc}
+   */
+  function post_execute(&$values) {
+    $this->ensureQuery();
+  }
 
   /**
    * Extract the SQL query from the query information.
@@ -290,19 +296,24 @@ class alpha_pagination_handler_pagination extends views_handler_area {
    * query is constructed for the ui to show the query in the administrative area.
    * I am open to suggestions on how to make this better.
    */
-  function post_execute(&$values) {
-    $query = $this->view->build_info['query'];
-    $quoted = $query->getArguments();
-    $connection = Database::getConnection();
-    foreach ($quoted as $key => $val) {
-      if (is_array($val)) {
-        $quoted[$key] = implode(', ', array_map(array($connection, 'quote'), $val));
+  function ensureQuery() {
+    if (empty($this->options['query'])) {
+      $query = $this->view->build_info['query'];
+      $quoted = $query->getArguments();
+      $connection = Database::getConnection();
+      foreach ($quoted as $key => $val) {
+        if (is_array($val)) {
+          $quoted[$key] = implode(', ', array_map(array(
+            $connection,
+            'quote'
+          ), $val));
+        }
+        else {
+          $quoted[$key] = $connection->quote($val);
+        }
       }
-      else {
-        $quoted[$key] = $connection->quote($val);
-      }
+      $this->options['query'] = check_plain(strtr($query, $quoted));
     }
-    $this->options['query'] = check_plain(strtr($query, $quoted));
   }
 
   /**
@@ -351,7 +362,8 @@ class alpha_pagination_handler_pagination extends views_handler_area {
         '#path' => sprintf('%s/%s', $this->options['pre_letter_path'], $key),
         '#options' => array(
           'attributes' => array(),
-          'html' => FALSE
+          'html' => FALSE,
+          'query' => drupal_get_query_parameters(),
           ),
         );
         $this->addOptionClasses('paginate_link_class', $item_data['#options']['attributes']);
@@ -448,6 +460,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
   *   A cache identifier.
   */
  protected function getCid() {
+   $this->ensureQuery();
    $query = !empty($this->options['query']) ? md5($this->options['query']) : '';
    return "alpha_pagination:{$this->view->name}:{$this->view->current_display}:$query";
  }
@@ -588,6 +601,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
    *   An indexed array of entity identifiers.
    */
   protected function getEntityIds () {
+    $this->ensureQuery();
     $query_parts = explode("\n", $this->options['query']);
 
     // Get the base field. This will change depending on the type of view we
