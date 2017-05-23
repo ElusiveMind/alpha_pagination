@@ -121,8 +121,14 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       '#description' => t('This is the path to the view that handles the search by letter. No beginning or ending slashes.'),
     );
 
-    // Get an array list of all non-image, non-entity or other assorted reference fields.
-    $fields = array('title' => 'title');
+    if ($this->view->base_table == 'taxonomy_term_data') {
+      // Get an array list of all non-image, non-entity or other assorted reference fields.
+      $fields = array('name' => 'name');
+    }
+    else {
+      // Get an array list of all non-image, non-entity or other assorted reference fields.
+      $fields = array('title' => 'title');  
+    }
 
     $compound_field_types = array('name');
     $single_field_types = array('text', 'text_long', 'text_with_summary');
@@ -556,6 +562,16 @@ class alpha_pagination_handler_pagination extends views_handler_area {
 
     if ($entity_ids = $this->getEntityIds()) {
       switch ($this->options['paginate_view_field']) {
+        case 'name':
+          $table = $this->view->base_table;
+          $where = $this->view->base_field;
+
+          // Extract the "name" field from the entity property info.
+          $table_data = views_fetch_data($table);
+          $entity_info = entity_get_property_info($table_data['table']['entity type']);
+          $field = isset($entity_info['properties']['name']['schema field']) ? $entity_info['properties']['name']['schema field'] : 'name';
+          break;
+
         case 'title':
           $table = $this->view->base_table;
           $where = $this->view->base_field;
