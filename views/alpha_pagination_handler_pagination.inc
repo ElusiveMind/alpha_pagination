@@ -303,7 +303,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
    * I am open to suggestions on how to make this better.
    */
   function ensureQuery() {
-    if (empty($this->options['query'])) {
+    if (empty($this->options['query']) && !empty($this->view->build_info['query'])) {
       $query = $this->view->build_info['query'];
       $quoted = $query->getArguments();
       $connection = Database::getConnection();
