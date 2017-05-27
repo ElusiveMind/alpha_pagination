@@ -643,6 +643,9 @@ class alpha_pagination_handler_pagination extends views_handler_area {
        // English. Initially the default value, but can be modified in alter.
        $alphabets['en'] = $default;
 
+       // Русский (Russian).
+       $alphabets['ru'] = array('А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И', 'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ы', 'Э', 'Ю', 'Я');
+
        // Allow modules and themes to alter alphabets.
        drupal_alter('alpha_pagination_alphabet', $alphabets, $this);
 
