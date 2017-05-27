@@ -112,7 +112,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       'translatable' => FALSE,
     );
     $options['paginate_numeric_value'] = array(
-      'default' => '0+1+2+3+4+5+6+7+8+9',
+      'default' => implode('+', $this->getNumbers()),
       'translatable' => FALSE,
     );
 
@@ -600,6 +600,113 @@ class alpha_pagination_handler_pagination extends views_handler_area {
  }
 
   /**
+   * Retrieves alphabet characters, based on langcode.
+   *
+   * Note: Do not use range(); always be explicit when defining an alphabet.
+   * This is necessary as you cannot rely on the server language to construct
+   * proper alphabet characters.
+   *
+   * @param string $langcode
+   *   The langcode to return. If the langcode does not exist, it will default
+   *   to English.
+   *
+   * @return array
+   *   An indexed array of alphabet characters, based on langcode.
+   *
+   * @see hook_alpha_pagination_alphabet_alter()
+   */
+ protected function getAlphabet($langcode = NULL) {
+   global $language;
+
+   // Default (English).
+   static $default = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
+   static $alphabets;
+
+   // If the langcode is not explicitly specified, default to global langcode.
+   if (!isset($langcode)) {
+     $langcode = $language->language;
+   }
+
+   // Retrieve alphabets.
+   if (!isset($alphabets)) {
+     // Attempt to retrieve from database cache.
+     $cid = "alpha_pagination:alphabets";
+     if (($cache = cache_get($cid)) && !empty($cache->data)) {
+       $alphabets = $cache->data;
+     }
+     // Build alphabets.
+     else {
+       // Arabic.
+       $alphabets['ar'] = array('ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','و','ه','ي');
+
+       // English. Initially the default value, but can be modified in alter.
+       $alphabets['en'] = $default;
+
+       // Allow modules and themes to alter alphabets.
+       drupal_alter('alpha_pagination_alphabet', $alphabets, $this);
+
+       // Cache the alphabets.
+       cache_set($cid, $alphabets);
+     }
+   }
+
+   // Return alphabet based on langcode.
+   return isset($alphabets[$langcode]) ? $alphabets[$langcode] : $default;
+ }
+
+  /**
+   * Retrieves numeric characters, based on langcode.
+   *
+   * Note: Do not use range(); always be explicit when defining numbers.
+   * This is necessary as you cannot rely on the server language to construct
+   * proper numeric characters.
+   *
+   * @param string $langcode
+   *   The langcode to return. If the langcode does not exist, it will default
+   *   to English.
+   *
+   * @return array
+   *   An indexed array of numeric characters, based on langcode.
+   *
+   * @see hook_alpha_pagination_numbers_alter()
+   */
+  protected function getNumbers($langcode = NULL) {
+    global $language;
+
+    // Default (English).
+    static $default = array('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
+    static $numbers;
+
+    // If the langcode is not explicitly specified, default to global langcode.
+    if (!isset($langcode)) {
+      $langcode = $language->language;
+    }
+
+    // Retrieve numbers.
+    if (!isset($numbers)) {
+      // Attempt to retrieve from database cache.
+      $cid = "alpha_pagination:numbers";
+      if (($cache = cache_get($cid)) && !empty($cache->data)) {
+        $numbers = $cache->data;
+      }
+      // Build numbers.
+      else {
+        // English. Initially the default value, but can be modified in alter.
+        $numbers['en'] = $default;
+
+        // Allow modules and themes to alter numbers.
+        drupal_alter('alpha_pagination_numbers', $numbers, $this);
+
+        // Cache the numbers.
+        cache_set($cid, $numbers);
+      }
+    }
+
+    // Return numbers based on langcode.
+    return isset($numbers[$langcode]) ? $numbers[$langcode] : $default;
+  }
+
+  /**
    * Retrieves the items used to populate the pagination item list.
    *
    * @return array
@@ -607,8 +714,6 @@ class alpha_pagination_handler_pagination extends views_handler_area {
    *   the letter, number or "all".
    */
   protected function getItems() {
-    // Bring in our global language variable.
-    global $language;
 
     // Check to see if this query is cached. If it is, then just pull our
     // results set from it so that things can move quickly through here. We're
@@ -618,16 +723,11 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       return $cache->data;
     }
 
-    // Construct the alphabet pagination items.
-    $items = range('A', 'Z');
-
-    // Add arabic alphabet when website's language is in arabic
-    if ($language->language == 'ar') {
-      $items = array('ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','و','ه','ي');
-    }
+    // Retrieve the alphabet characters.
+    $items = $this->getAlphabet();
 
     // Append or prepend numeric items.
-    $numbers = $this->options['paginate_view_numbers'] == 2 ? array(check_plain($this->options['paginate_numeric_label'])) : range('0', '9');
+    $numbers = $this->options['paginate_view_numbers'] == 2 ? array(check_plain($this->options['paginate_numeric_label'])) : $this->getNumbers();
     if (!empty($this->options['paginate_view_numbers'])) {
       $numeric_divider = $this->options['paginate_numeric_divider'] ? array('-') : array();
       if ($this->options['paginate_numeric_position'] === 'after') {
