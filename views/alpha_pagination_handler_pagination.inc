@@ -87,12 +87,32 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       'default' => 0,
       'translatable' => FALSE,
     );
+    $options['paginate_numeric_class'] = array(
+      'default' => 'numeric',
+      'translatable' => FALSE,
+    );
+    $options['paginate_numeric_divider'] = array(
+      'default' => 1,
+      'translatable' => FALSE,
+    );
+    $options['paginate_numeric_divider_class'] = array(
+      'default' => 'numeric-divider',
+      'translatable' => FALSE,
+    );
+    $options['paginate_numeric_hide_empty'] = array(
+      'default' => 1,
+      'translatable' => FALSE,
+    );
+    $options['paginate_numeric_label'] = array(
+      'default' => '#',
+      'translatable' => FALSE,
+    );
     $options['paginate_numeric_position'] = array(
       'default' => 'before',
       'translatable' => FALSE,
     );
-    $options['paginate_numeric_class'] = array(
-      'default' => 'numeric',
+    $options['paginate_numeric_value'] = array(
+      'default' => '0+1+2+3+4+5+6+7+8+9',
       'translatable' => FALSE,
     );
 
@@ -255,17 +275,32 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       '#title' => t('Numeric items'),
       '#collapsible' => TRUE,
     );
+
     $form['paginate_view_numbers'] = array(
       '#title' => t('Display numeric items'),
       '#type' => 'select',
       '#options' => array(
         0 => t('No'),
-        1 => t('Yes'),
+        1 => t('Individual numbers (0-9)'),
+        2 => t('Single label (#)'),
       ),
       '#default_value' => $this->options['paginate_view_numbers'],
-      '#description' => t('Displays numeric (0-9) links in the pagination.'),
+      '#description' => t('Displays numeric item(s) in the pagination.'),
       '#fieldset' => 'paginate_numeric_options',
     );
+
+    // Global numeric options.
+    $form['paginate_numeric_class'] = array(
+      '#title' => t('Classes'),
+      '#type' => 'textfield',
+      '#default_value' => $this->options['paginate_numeric_class'],
+      '#description' => t('CSS classes for numeric item (on <code>&lt;li&gt;</code> element); separated by spaces.'),
+      '#fieldset' => 'paginate_numeric_options',
+      '#dependency' => array(
+        'edit-options-paginate-view-numbers' => array(1, 2),
+      ),
+    );
+
     $form['paginate_numeric_position'] = array(
       '#type' => 'select',
       '#title' => t('Position'),
@@ -275,18 +310,69 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       ),
       '#default_value' => $this->options['paginate_numeric_position'],
       '#description' => t('Determines whether numeric items are shown before or after alphabetical links in the pagination.'),
-      '#dependency' => array('edit-options-paginate-view-numbers' => array(1)),
       '#fieldset' => 'paginate_numeric_options',
+      '#dependency' => array(
+        'edit-options-paginate-view-numbers' => array(1, 2),
+      ),
     );
-    $form['paginate_numeric_class'] = array(
-      '#title' => t('Classes'),
+
+    $form['paginate_numeric_hide_empty'] = array(
+      '#title' => t('Hide all numeric item(s) if empty'),
+      '#description' => t('Will not render any numeric item(s) if there are no results that start with numeric values.'),
+      '#type' => 'checkbox',
+      '#default_value' => $this->options['paginate_numeric_hide_empty'],
+      '#fieldset' => 'paginate_numeric_options',
+      '#dependency' => array(
+        'edit-options-paginate-view-numbers' => array(1, 2),
+      ),
+    );
+
+    // Individual numeric items.
+    $form['paginate_numeric_divider'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Show divider'),
+      '#default_value' => $this->options['paginate_numeric_divider'],
+      '#description' => t('Will render a specific divider item before or after the numeric items have been render, based on position.'),
+      '#fieldset' => 'paginate_numeric_options',
+      '#dependency' => array(
+        'edit-options-paginate-view-numbers' => array(1),
+      ),
+    );
+
+    $form['paginate_numeric_divider_class'] = array(
+      '#title' => t('Divider class'),
       '#type' => 'textfield',
-      '#default_value' => $this->options['paginate_numeric_class'],
-      '#description' => t('CSS classes for numeric item (on <code>&lt;li&gt;</code> element); separated by spaces.'),
-      '#dependency' => array('edit-options-paginate-view-numbers' => array(1)),
+      '#default_value' => $this->options['paginate_numeric_divider_class'],
+      '#description' => t('The class to use for the numeric divider list item.'),
       '#fieldset' => 'paginate_numeric_options',
+      '#dependency' => array(
+        'edit-options-paginate-view-numbers' => array(1),
+        'edit-options-paginate-numeric-divider' => array(1),
+      ),
+      '#dependency_count' => 2,
     );
+
+    // Single numeric item.
+    $form['paginate_numeric_label'] = array(
+      '#title' => t('Label'),
+      '#type' => 'textfield',
+      '#default_value' => $this->options['paginate_numeric_label'],
+      '#description' => t('The label to use to represent all numeric values.'),
+      '#fieldset' => 'paginate_numeric_options',
+      '#dependency' => array('edit-options-paginate-view-numbers' => array(2)),
+    );
+
+    $form['paginate_numeric_value'] = array(
+      '#title' => t('Value'),
+      '#type' => 'textfield',
+      '#default_value' => $this->options['paginate_numeric_value'],
+      '#description' => t('The value to use to represent all numeric values (i.e. URL value).'),
+      '#fieldset' => 'paginate_numeric_options',
+      '#dependency' => array('edit-options-paginate-view-numbers' => array(2)),
+    );
+
   }
+
   /**
    * {@inheritdoc}
    */
@@ -353,23 +439,55 @@ class alpha_pagination_handler_pagination extends views_handler_area {
 
     // Iterate over the alphabet and populate the items for the item list.
     $items = array();
-    foreach ($this->getItems() as $key => $is_link) {
-      $all = drupal_strtolower($key) === 'all';
-      $numeric = is_numeric($key);
-      $active = (string) $key === (string) $this->view->args[0];
+    foreach ($this->getItems() as $value => $is_link) {
+      // All.
+      $all = drupal_strtolower($value) === 'all';
+
+      // Numeric.
+      $numeric_label = $this->options['paginate_numeric_label'];
+      $numeric_value = $this->options['paginate_numeric_value'];
+      $single_numeric_label = $this->options['paginate_view_numbers'] == 2;
+      $numeric = is_numeric($value) || ($single_numeric_label && $value === $numeric_label);
+      $numeric_divider = FALSE;
+      if ($value === '-') {
+        if (!$single_numeric_label && $this->options['paginate_numeric_divider']) {
+          $numeric_divider = TRUE;
+          $value = '';
+        }
+        else {
+          continue;
+        }
+      }
+
+      // Active.
+      if ($numeric && $single_numeric_label) {
+        $active = (string) $numeric_value === (string) $this->view->args[0];
+      }
+      else {
+        $active = (string) $value === (string) $this->view->args[0];
+      }
+
+      // Link.
       $is_link = !$active && ($all || $is_link);
-      $label = $all ? $all_label : drupal_ucfirst($key);
+
+      // Label.
+      $label = $all ? $all_label : drupal_ucfirst($value);
+
+      // Ensure a single numeric label alters the URL value.
+      if ($single_numeric_label && $value === $this->options['paginate_numeric_label']) {
+        $value = $this->options['paginate_numeric_value'];
+      }
 
       // Theme link item.
       if ($is_link) {
         $item_data = array(
-        '#theme' => 'link__alpha_pagination__' . drupal_html_class($key),
-        '#text' => $label,
-        '#path' => sprintf('%s/%s', $this->options['pre_letter_path'], $key),
-        '#options' => array(
-          'attributes' => array(),
-          'html' => FALSE,
-          'query' => drupal_get_query_parameters(),
+          '#theme' => 'link__alpha_pagination__' . drupal_html_class($value),
+          '#text' => $label,
+          '#path' => sprintf('%s/%s', $this->options['pre_letter_path'], $value),
+          '#options' => array(
+            'attributes' => array(),
+            'html' => FALSE,
+            'query' => drupal_get_query_parameters(),
           ),
         );
         $this->addOptionClasses('paginate_link_class', $item_data['#options']['attributes']);
@@ -389,7 +507,17 @@ class alpha_pagination_handler_pagination extends views_handler_area {
         );
       }
 
-      if (!empty($item_data)) {
+      // Add special numeric divider class.
+      if ($numeric_divider) {
+        // Add an empty list item.
+        $item = array('data' => '');
+
+        $this->addOptionClasses('paginate_numeric_divider_class', $item);
+
+        // Add the constructed item to the list.
+        $items[] = $item;
+      }
+      else if (!empty($item_data)) {
         // Unfortunately, the implementation of item_list in D7 core does not
         // allow render arrays to be passed as data and requires premature
         // rendering here.
@@ -499,12 +627,14 @@ class alpha_pagination_handler_pagination extends views_handler_area {
     }
 
     // Append or prepend numeric items.
+    $numbers = $this->options['paginate_view_numbers'] == 2 ? array(check_plain($this->options['paginate_numeric_label'])) : range('0', '9');
     if (!empty($this->options['paginate_view_numbers'])) {
+      $numeric_divider = $this->options['paginate_numeric_divider'] ? array('-') : array();
       if ($this->options['paginate_numeric_position'] === 'after') {
-        $items =  array_merge($items, range('0', '9'));
+        $items = array_merge($items, $numeric_divider, $numbers);
       }
       else {
-        $items =  array_merge(range('0', '9'), $items);
+        $items = array_merge($numbers, $numeric_divider, $items);
       }
     }
 
@@ -533,9 +663,21 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       // Set prefixes to TRUE if it exists from the default list that was
       // constructed from view options above.
       foreach ($prefixes as $prefix) {
+        if (is_numeric($prefix) && $this->options['paginate_view_numbers'] == 2) {
+          $prefix = $this->options['paginate_numeric_label'];
+        }
         if (isset($results[$prefix])) {
           $results[$prefix] = TRUE;
         }
+      }
+    }
+
+    // Remove all numeric values if they're all empty.
+    if ($this->options['paginate_numeric_hide_empty']) {
+      // Determine if numeric results are not empty.
+      $numeric_results = array_filter(array_intersect_key($results, array_flip($numbers)));
+      if (!$numeric_results) {
+        $results = array_diff_key($results, array_flip($numbers));
       }
     }
 
