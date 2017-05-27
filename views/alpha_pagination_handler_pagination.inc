@@ -594,9 +594,10 @@ class alpha_pagination_handler_pagination extends views_handler_area {
   *   A cache identifier.
   */
  protected function getCid() {
+   global $language;
    $this->ensureQuery();
    $query = !empty($this->options['query']) ? md5($this->options['query']) : '';
-   return "alpha_pagination:{$this->view->name}:{$this->view->current_display}:$query";
+   return "alpha_pagination:{$language->langcode}:{$this->view->name}:{$this->view->current_display}:$query";
  }
 
   /**
