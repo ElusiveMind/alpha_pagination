@@ -1,5 +1,4 @@
 <?php
-
 /**
  * @file
  * alpha_pagination_sample_view.features.inc

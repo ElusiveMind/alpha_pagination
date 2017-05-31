@@ -1,5 +1,4 @@
 <?php
-
 /**
  * @file
  * alpha_pagination_sample_view.views_default.inc
@@ -39,7 +38,6 @@ function alpha_pagination_sample_view_views_default_views() {
   $handler->display->display_options['header']['alpha_pagination']['field'] = 'alpha_pagination';
   $handler->display->display_options['header']['alpha_pagination']['label'] = 'Alpha Pagination Sample';
   $handler->display->display_options['header']['alpha_pagination']['empty'] = TRUE;
-  $handler->display->display_options['header']['alpha_pagination']['pre_letter_path'] = 'alpha-pagination-sample';
   $handler->display->display_options['header']['alpha_pagination']['paginate_list_class'] = 'alpha-pagination-example';
   $handler->display->display_options['header']['alpha_pagination']['paginate_all_display'] = '1';
   $handler->display->display_options['header']['alpha_pagination']['paginate_view_numbers'] = '1';
@@ -76,6 +74,7 @@ function alpha_pagination_sample_view_views_default_views() {
   $handler->display->display_options['arguments']['title']['limit'] = '1';
   $handler->display->display_options['arguments']['title']['case'] = 'upper';
   $handler->display->display_options['arguments']['title']['path_case'] = 'upper';
+  $handler->display->display_options['arguments']['title']['break_phrase'] = TRUE;
   /* Filter criterion: Content: Published */
   $handler->display->display_options['filters']['status']['id'] = 'status';
   $handler->display->display_options['filters']['status']['table'] = 'node';

@@ -17,13 +17,29 @@ class alpha_pagination_handler_pagination extends views_handler_area {
    */
   function option_definition() {
     $options = parent::option_definition();
-    $options['pre_letter_path'] = array(
-      'default' => 'by-first-letter',
-      'translatable' => FALSE,
-    );
+
+    // Global.
     $options['paginate_view_field'] = array(
       'default' => 'title',
       'translatable' => TRUE,
+    );
+
+    // Link.
+    $options['paginate_link_path'] = array(
+      'default' => '[alpha_pagination:path]/[alpha_pagination:value]',
+      'translatable' => FALSE,
+    );
+    $options['paginate_link_external'] = array(
+      'default' => 0,
+      'translatable' => FALSE,
+    );
+    $options['paginate_link_class'] = array(
+      'default' => '',
+      'translatable' => FALSE,
+    );
+    $options['paginate_link_attributes'] = array(
+      'default' => '',
+      'translatable' => FALSE,
     );
 
     // Classes.
@@ -41,10 +57,6 @@ class alpha_pagination_handler_pagination extends views_handler_area {
     );
     $options['paginate_inactive_class'] = array(
       'default' => 'inactive',
-      'translatable' => FALSE,
-    );
-    $options['paginate_link_class'] = array(
-      'default' => '',
       'translatable' => FALSE,
     );
 
@@ -113,6 +125,11 @@ class alpha_pagination_handler_pagination extends views_handler_area {
   function options_submit(&$form, &$form_state) {
     // Need to clear cache when options have changed.
     cache_clear_all($this->getCid(), 'cache', TRUE);
+
+    // Filter attributes for any XSS vulnerabilities before saving.
+    if (!empty($form_state['values']['options']['paginate_link_attributes'])) {
+      $form_state['values']['options']['paginate_link_attributes'] = filter_xss_admin($form_state['values']['options']['paginate_link_attributes']);
+    }
   }
 
   /**
@@ -120,14 +137,8 @@ class alpha_pagination_handler_pagination extends views_handler_area {
    */
   function options_form(&$form, &$form_state) {
     parent::options_form($form, $form_state);
-    $form['pre_letter_path'] = array(
-      '#title' => t('Path to results view'),
-      '#type' => 'textfield',
-      '#size' => 60,
-      '#default_value' => $this->options['pre_letter_path'],
-      '#description' => t('This is the path to the view that handles the search by letter. No beginning or ending slashes.'),
-    );
 
+    // Global options.
     if ($this->view->base_table == 'taxonomy_term_data') {
       // Get an array list of all non-image, non-entity or other assorted reference fields.
       $fields = array('name' => 'name');
@@ -169,6 +180,83 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       '#description' => t('Show or hide letters without results'),
     );
 
+    if (module_exists('token')) {
+      $tokens = array(
+        '#type' => 'container',
+        '#title' => t('Browse available tokens'),
+      );
+      $tokens['help'] = array(
+        '#theme' => 'token_tree_link',
+        '#token_types' => array('alpha_pagination'),
+        '#global_types' => TRUE,
+        '#dialog' => TRUE,
+      );
+    }
+    else {
+      $tokens = array(
+        '#type' => 'fieldset',
+        '#title' => 'Available tokens',
+        '#collapsible' => TRUE,
+        '#collapsed' => TRUE,
+      );
+      $items = array();
+      $token_info = alpha_pagination_token_info();
+      foreach ($token_info['tokens'] as $_type => $_tokens) {
+        foreach ($_tokens as $_token => $_data) {
+          $items[] = "[$_type:$_token] - {$_data['description']}";
+        }
+      }
+      $tokens['help'] = array(
+        '#theme' => 'item_list',
+        '#items' => $items,
+      );
+    }
+
+    // Link.
+    $form['paginate_link'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Link'),
+      '#collapsible' => TRUE,
+    );
+
+    $form['paginate_link_path'] = array(
+      '#title' => t('Path'),
+      '#type' => 'textfield',
+      '#size' => 60,
+      '#default_value' => $this->options['paginate_link_path'],
+      '#description' => t('This is the path the link will be rendered with. No beginning or ending slashes.'),
+      '#fieldset' => 'paginate_link',
+    );
+
+    $form['paginate_link_external'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('External'),
+      '#default_value' => $this->options['paginate_link_external'],
+      '#description' => t('Indicates whether this is an external link (not processed). If the above path starts with a hash symbol (#), then this option will automatically enable so it can render as a relative link to an anchor on the current page.'),
+      '#fieldset' => 'paginate_link',
+    );
+
+    $form['paginate_link_class'] = array(
+      '#title' => t('Classes'),
+      '#type' => 'textfield',
+      '#default_value' => $this->options['paginate_link_class'],
+      '#description' => t('CSS classes for the link, separated by spaces.'),
+      '#fieldset' => 'paginate_link',
+    );
+
+    $form['paginate_link_attributes'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Attributes'),
+      '#description' => 'E.g. id|custom-id,role|navigation,data-key|value',
+      '#default_value' => $this->options['paginate_link_attributes'],
+      '#fieldset' => 'paginate_link',
+    );
+
+    if ($tokens) {
+      $form['paginate_link_tokens'] = $tokens;
+      $form['paginate_link_tokens']['#fieldset'] = 'paginate_link';
+    }
+
     // Class options.
     $form['paginate_classes'] = array(
       '#type' => 'fieldset',
@@ -202,13 +290,6 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       '#type' => 'textfield',
       '#default_value' => $this->options['paginate_inactive_class'],
       '#description' => t('The inactive list item(s) that are not links, a.k.a. "no results".'),
-      '#fieldset' => 'paginate_classes',
-    );
-    $form['paginate_link_class'] = array(
-      '#title' => t('Link'),
-      '#type' => 'textfield',
-      '#default_value' => $this->options['paginate_link_class'],
-      '#description' => t('The link element.'),
       '#fieldset' => 'paginate_classes',
     );
 
@@ -422,16 +503,25 @@ class alpha_pagination_handler_pagination extends views_handler_area {
     );
     $this->addOptionClasses('paginate_class', $wrapper['#attributes']);
 
-    // Account for an argument-less call to the page.
-    if (empty($this->view->args)) {
-      $this->view->args[0] = 'all';
+    $values = $this->getItems();
+
+    // Default to "all" unless a valid argument was provided.
+    $current = 'all';
+
+    // Attempt to determine if a valid argument was provided.
+    $arg_count = count($this->view->args);
+    if ($arg_count) {
+      $arg = (string) $this->view->args[$arg_count - 1];
+      if ($arg && array_key_exists($arg, $values)) {
+        $current = $arg;
+      }
     }
 
     $all_label = !empty($this->options['paginate_all_label']) ? t(check_plain($this->options['paginate_all_label'])) : t('All');
 
     // Iterate over the alphabet and populate the items for the item list.
     $items = array();
-    foreach ($this->getItems() as $value => $is_link) {
+    foreach ($values as $value => $is_link) {
       // All.
       $all = drupal_strtolower($value) === 'all';
 
@@ -453,10 +543,10 @@ class alpha_pagination_handler_pagination extends views_handler_area {
 
       // Active.
       if ($numeric && $single_numeric_label) {
-        $active = (string) $numeric_value === (string) $this->view->args[0];
+        $active = (string) $numeric_value === $current;
       }
       else {
-        $active = (string) $value === (string) $this->view->args[0];
+        $active = (string) $value === $current;
       }
 
       // Link.
@@ -472,17 +562,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
 
       // Theme link item.
       if ($is_link) {
-        $item_data = array(
-          '#theme' => 'link__alpha_pagination__' . drupal_html_class($value),
-          '#text' => $label,
-          '#path' => sprintf('%s/%s', $this->options['pre_letter_path'], $value),
-          '#options' => array(
-            'attributes' => array(),
-            'html' => FALSE,
-            'query' => drupal_get_query_parameters(),
-          ),
-        );
-        $this->addOptionClasses('paginate_link_class', $item_data['#options']['attributes']);
+        $item_data = $this->buildLink($label, $value);
       }
       // Theme non-link item (a.k.a "inactive").
       //
@@ -509,29 +589,31 @@ class alpha_pagination_handler_pagination extends views_handler_area {
         // Add the constructed item to the list.
         $items[] = $item;
       }
-      else if (!empty($item_data)) {
-        // Unfortunately, the implementation of item_list in D7 core does not
-        // allow render arrays to be passed as data and requires premature
-        // rendering here.
-        // @todo In D8, pass the render array directly since it can process it.
-        $item = array('data' => drupal_render($item_data));
+      else {
+        if (!empty($item_data)) {
+          // Unfortunately, the implementation of item_list in D7 core does not
+          // allow render arrays to be passed as data and requires premature
+          // rendering here.
+          // @todo In D8, pass the render array directly since it can process it.
+          $item = array('data' => drupal_render($item_data));
 
-        // Add the necessary classes for item.
-        if ($all) {
-          $this->addOptionClasses('paginate_all_class', $item);
-        }
-        if ($numeric) {
-          $this->addOptionClasses('paginate_numeric_class', $item);
-        }
-        if ($active) {
-          $this->addOptionClasses('paginate_active_class', $item);
-        }
-        elseif (!$is_link) {
-          $this->addOptionClasses('paginate_inactive_class', $item);
-        }
+          // Add the necessary classes for item.
+          if ($all) {
+            $this->addOptionClasses('paginate_all_class', $item);
+          }
+          if ($numeric) {
+            $this->addOptionClasses('paginate_numeric_class', $item);
+          }
+          if ($active) {
+            $this->addOptionClasses('paginate_active_class', $item);
+          }
+          elseif (!$is_link) {
+            $this->addOptionClasses('paginate_inactive_class', $item);
+          }
 
-        // Add the constructed item to the list.
-        $items[] = $item;
+          // Add the constructed item to the list.
+          $items[] = $item;
+        }
       }
     }
 
@@ -577,6 +659,56 @@ class alpha_pagination_handler_pagination extends views_handler_area {
     }
 
     return $classes;
+  }
+
+  /**
+   * Builds a link render array based on current text, value and options.
+   *
+   * @param string $text
+   *   The current text label.
+   * @param string $value
+   *   The current value.
+   * @param array $options
+   *   Optional. Array of options to pass to url().
+   *
+   * @return array
+   *   A render array for the link.
+   */
+  protected function buildLink($text, $value, array $options = array()) {
+    // Merge in options.
+    $options = drupal_array_merge_deep(array(
+      'attributes' => array(),
+      'html' => FALSE,
+      'query' => drupal_get_query_parameters(),
+    ), $options);
+
+    // Merge in classes.
+    $this->addOptionClasses('paginate_link_class', $options['attributes']);
+
+    $path = token_replace($this->options['paginate_link_path'], $this->getTokens($value));
+
+    // Determine if link is external (automatically enforcing for anchors).
+    if ($this->options['paginate_link_external'] || ($path && $path[0] === '#')) {
+      $options['external'] = TRUE;
+    }
+
+    // Add in additional attributes.
+    if ($this->options['paginate_link_attributes']) {
+      $attributes = $this->parseAttributes($this->options['paginate_link_attributes'], $this->getTokens($value));
+      // Remove any class attributes (should use the dedicated class option).
+      unset($attributes['class']);
+
+      // Merge in the attributes.
+      $options['attributes'] = drupal_array_merge_deep($options['attributes'], $attributes);
+    }
+
+    // Build link render array.
+    return array(
+      '#theme' => 'link__alpha_pagination',
+      '#text' => $text,
+      '#path' => $path,
+      '#options' => $options,
+    );
   }
 
   /**
@@ -897,4 +1029,128 @@ class alpha_pagination_handler_pagination extends views_handler_area {
     }
     return $entity_ids;
   }
+
+  /**
+   * Provides the token data that is passed when during replacement.
+   *
+   * @param string $value
+   *   The current character value being processed.
+   *
+   * @return array
+   *   Token data.
+   *
+   * @see alpha_pagination_token_info()
+   * @see alpha_pagination_tokens()
+   */
+  protected function getTokens($value = NULL) {
+    return array(
+      'alpha_pagination' => array(
+        'path' => $this->getUrl(),
+        'value' => $value,
+      ),
+    );
+  }
+
+  /**
+   * Retrieves the URL for the current view.
+   *
+   * Note: this follows very similarly to \view::get_url to process arguments,
+   * however it is in fact severely modified to account for characters appended
+   * by this module.
+   *
+   * @return string
+   *   The URL for the view or current_path().
+   */
+  protected function getUrl() {
+    static $url;
+
+    if (!isset($url)) {
+      if (!empty($this->view->override_url)) {
+        return $this->view->override_url;
+      }
+
+      $path = $this->view->get_path();
+      $args = $this->view->args;
+
+      // Exclude arguments that were computed, not passed on the URL.
+      $position = 0;
+      if (!empty($this->argument)) {
+        foreach ($this->argument as $argument_id => $argument) {
+          if (!empty($argument->options['default_argument_skip_url'])) {
+            unset($args[$position]);
+          }
+          $position++;
+        }
+      }
+
+      // Don't bother working if there's nothing to do:
+      if (empty($path) || (empty($args) && strpos($path, '%') === FALSE)) {
+        $path = current_path();
+        $pieces = explode('/', $path);
+        if (array_key_exists(end($pieces), $this->getItems())) {
+          array_pop($pieces);
+        }
+        $url = implode('/', $pieces);
+        return $url;
+      }
+
+      $pieces = array();
+      $argument_keys = isset($this->argument) ? array_keys($this->argument) : array();
+      $id = current($argument_keys);
+      foreach (explode('/', $path) as $piece) {
+        if ($piece != '%') {
+          $pieces[] = $piece;
+        }
+        else {
+          if (empty($args)) {
+            // Try to never put % in a url; use the wildcard instead.
+            if ($id && !empty($this->argument[$id]->options['exception']['value'])) {
+              $pieces[] = $this->argument[$id]->options['exception']['value'];
+            }
+            else {
+              $pieces[] = '*'; // gotta put something if there just isn't one.
+            }
+
+          }
+          else {
+            $pieces[] = array_shift($args);
+          }
+
+          if ($id) {
+            $id = next($argument_keys);
+          }
+        }
+      }
+
+      // Just return the computed pieces, don't merge any extra remaining args.
+      $url = implode('/', $pieces);
+    }
+    return $url;
+  }
+
+  /**
+   * Parses an attribute string saved in the UI.
+   *
+   * @param string $string
+   *   The attribute string to parse.
+   * @param array $tokens
+   *   An associative array of token data to use.
+   *
+   * @return array
+   *   A parsed attributes array.
+   */
+  protected function parseAttributes($string = NULL, array $tokens = []) {
+    $attributes = [];
+    if (!empty($string)) {
+      $parts = explode(',', $string);
+      foreach ($parts as $attribute) {
+        if (strpos($attribute, '|') !== FALSE) {
+          list($key, $value) = explode('|', token_replace($attribute, $tokens, ['clear' => TRUE]));
+          $attributes[$key] = $value;
+        }
+      }
+    }
+    return $attributes;
+  }
+
 }
