@@ -3,27 +3,15 @@
 /**
  * @file
  * Definition of alpha_pagination_handler_pagination.
- *
- * @author Michael R. Bagnall (@mbagnall17)
- * @version 1.0
- * @copyright 2015 FlyingFlip Studios, LLC. (@flyingflip)
- * @link http://www.michaelbagnall.com
- * @file alpha_pagination_handler_pagination.inc
- *
- * @license
- * Copyright (c) 2015 FlyingFlip Studios, LLC.
- * This software is open-source licensed under the GNU Public License Version 2 or later
- * The full license is available in the LICENSE.TXT file at the root of this repository
  */
 
 /**
- * Views area handler to display an alphabetic pagination representive of the entire
- * result set for this view and not just the limited number being displayed by the
- * view's configuration
+ * Views area handler to display alphabetic pagination.
  *
  * @ingroup views_area_handlers
  */
 class alpha_pagination_handler_pagination extends views_handler_area {
+
   /**
    * Our option default definitions.
    */
@@ -120,11 +108,10 @@ class alpha_pagination_handler_pagination extends views_handler_area {
   }
 
   /**
-   * We need to clear our cache when changing options or things go badly. It does not
-   * pick up on the items with the modified terms because it uses cached items until
-   * a cache-clear is performed. This eliminates that step.
+   * {@inheritdoc}
    */
   function options_submit(&$form, &$form_state) {
+    // Need to clear cache when options have changed.
     cache_clear_all($this->getCid(), 'cache', TRUE);
   }
 
@@ -147,7 +134,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
     }
     else {
       // Get an array list of all non-image, non-entity or other assorted reference fields.
-      $fields = array('title' => 'title');  
+      $fields = array('title' => 'title');
     }
 
     $compound_field_types = array('name');
@@ -161,7 +148,8 @@ class alpha_pagination_handler_pagination extends views_handler_area {
             $compound_field_field_name = sprintf('%s:%s', $field_name, $compoundFieldKey);
             $fields[$compound_field_field_name] = $compound_field_field_name;
           }
-        } else {
+        }
+        else {
           $fields[$field_name] = $field_name;
         }
       }
@@ -173,6 +161,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       '#default_value' => $this->options['paginate_view_field'],
       '#description' => t('This will be the content field that drives the pagination.'),
     );
+
     $form['paginate_toggle_empty'] = array(
       '#type' => 'checkbox',
       '#title' => t('Show options without results'),
@@ -383,10 +372,12 @@ class alpha_pagination_handler_pagination extends views_handler_area {
   /**
    * Extract the SQL query from the query information.
    *
-   * Once extracted, place it into the options array so it is passed to the render
-   * function. This code was lifted nearly verbatim from the views module where the
-   * query is constructed for the ui to show the query in the administrative area.
-   * I am open to suggestions on how to make this better.
+   * Once extracted, place it into the options array so it is passed to the
+   * render function. This code was lifted nearly verbatim from the views
+   * module where the query is constructed for the ui to show the query in the
+   * administrative area.
+   *
+   * @todo Need to make this better somehow?
    */
   function ensureQuery() {
     if (empty($this->options['query']) && !empty($this->view->build_info['query'])) {
@@ -397,7 +388,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
         if (is_array($val)) {
           $quoted[$key] = implode(', ', array_map(array(
             $connection,
-            'quote'
+            'quote',
           ), $val));
         }
         else {
@@ -409,13 +400,14 @@ class alpha_pagination_handler_pagination extends views_handler_area {
   }
 
   /**
-   * Render the alphabetic paginator
+   * Render the alphabetic pagination.
    *
    * @param bool $empty
-   *   If this area should be emptym then return it as empty.
+   *   If this area should be empty, then return it as empty.
    *
    * @return string $paginator
-   *   A string representing the complete paginator including linked and unlinked options.
+   *   A string representing the complete pagination including linked and
+   *   unlinked options.
    */
   function render($empty = FALSE) {
     // Create the wrapper.
@@ -425,7 +417,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       '#attached' => array(
         'library' => array(
           array('alpha_pagination', 'alpha_pagination'),
-        )
+        ),
       ),
     );
     $this->addOptionClasses('paginate_class', $wrapper['#attributes']);
@@ -557,48 +549,35 @@ class alpha_pagination_handler_pagination extends views_handler_area {
     return drupal_render($wrapper);
   }
 
- /**
-  * Add classes to an attributes array from a view option.
-  *
-  * @param string $option
-  *   The name of the view option that contains a space separated list of
-  *   classes.
-  * @param array $attributes
-  *   An attributes array to add the classes to, passed by reference.
-  *
-  * @return array
-  *   An array of classes to be used in a render array.
-  */
- protected function addOptionClasses($option, array &$attributes) {
-   // Sanitize any classes provided for the item list.
-   $classes = array_filter(explode(' ', $this->options[$option]));
-   foreach ($classes as &$class) {
-     $class = views_clean_css_identifier($class);
-   }
+  /**
+   * Add classes to an attributes array from a view option.
+   *
+   * @param string $option
+   *   The name of the view option that contains a space separated list of
+   *   classes.
+   * @param array $attributes
+   *   An attributes array to add the classes to, passed by reference.
+   *
+   * @return array
+   *   An array of classes to be used in a render array.
+   */
+  protected function addOptionClasses($option, array &$attributes) {
+    // Sanitize any classes provided for the item list.
+    $classes = array_filter(explode(' ', $this->options[$option]));
+    foreach ($classes as &$class) {
+      $class = views_clean_css_identifier($class);
+    }
 
-   // Don't add any classes if it's empty, which will add an empty attribute.
-   if ($classes) {
-     if (!isset($attributes['class'])) {
-       $attributes['class'] = array();
-     }
-     $attributes['class'] = array_unique(array_merge($attributes['class'], $classes));
-   }
+    // Don't add any classes if it's empty, which will add an empty attribute.
+    if ($classes) {
+      if (!isset($attributes['class'])) {
+        $attributes['class'] = array();
+      }
+      $attributes['class'] = array_unique(array_merge($attributes['class'], $classes));
+    }
 
-   return $classes;
- }
-
- /**
-  * Retrieves a cache identifier for the view, display and query, if set.
-  *
-  * @return string
-  *   A cache identifier.
-  */
- protected function getCid() {
-   global $language;
-   $this->ensureQuery();
-   $query = !empty($this->options['query']) ? md5($this->options['query']) : '';
-   return "alpha_pagination:{$language->language}:{$this->view->name}:{$this->view->current_display}:$query";
- }
+    return $classes;
+  }
 
   /**
    * Retrieves alphabet characters, based on langcode.
@@ -616,47 +595,60 @@ class alpha_pagination_handler_pagination extends views_handler_area {
    *
    * @see hook_alpha_pagination_alphabet_alter()
    */
- protected function getAlphabet($langcode = NULL) {
-   global $language;
+  protected function getAlphabet($langcode = NULL) {
+    global $language;
 
-   // Default (English).
-   static $default = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
-   static $alphabets;
+    // Default (English).
+    static $default = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
+    static $alphabets;
 
-   // If the langcode is not explicitly specified, default to global langcode.
-   if (!isset($langcode)) {
-     $langcode = $language->language;
-   }
+    // If the langcode is not explicitly specified, default to global langcode.
+    if (!isset($langcode)) {
+      $langcode = $language->language;
+    }
 
-   // Retrieve alphabets.
-   if (!isset($alphabets)) {
-     // Attempt to retrieve from database cache.
-     $cid = "alpha_pagination:alphabets";
-     if (($cache = cache_get($cid)) && !empty($cache->data)) {
-       $alphabets = $cache->data;
-     }
-     // Build alphabets.
-     else {
-       // Arabic.
-       $alphabets['ar'] = array('ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','و','ه','ي');
+    // Retrieve alphabets.
+    if (!isset($alphabets)) {
+      // Attempt to retrieve from database cache.
+      $cid = "alpha_pagination:alphabets";
+      if (($cache = cache_get($cid)) && !empty($cache->data)) {
+        $alphabets = $cache->data;
+      }
+      // Build alphabets.
+      else {
+        // Arabic.
+        $alphabets['ar'] = array('ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'و', 'ه', 'ي');
 
-       // English. Initially the default value, but can be modified in alter.
-       $alphabets['en'] = $default;
+        // English. Initially the default value, but can be modified in alter.
+        $alphabets['en'] = $default;
 
-       // Русский (Russian).
-       $alphabets['ru'] = array('А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И', 'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ы', 'Э', 'Ю', 'Я');
+        // Русский (Russian).
+        $alphabets['ru'] = array('А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И', 'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ы', 'Э', 'Ю', 'Я');
 
-       // Allow modules and themes to alter alphabets.
-       drupal_alter('alpha_pagination_alphabet', $alphabets, $this);
+        // Allow modules and themes to alter alphabets.
+        drupal_alter('alpha_pagination_alphabet', $alphabets, $this);
 
-       // Cache the alphabets.
-       cache_set($cid, $alphabets);
-     }
-   }
+        // Cache the alphabets.
+        cache_set($cid, $alphabets);
+      }
+    }
 
-   // Return alphabet based on langcode.
-   return isset($alphabets[$langcode]) ? $alphabets[$langcode] : $default;
- }
+    // Return alphabet based on langcode.
+    return isset($alphabets[$langcode]) ? $alphabets[$langcode] : $default;
+  }
+
+  /**
+   * Retrieves a cache identifier for the view, display and query, if set.
+   *
+   * @return string
+   *   A cache identifier.
+   */
+  protected function getCid() {
+    global $language;
+    $this->ensureQuery();
+    $query = !empty($this->options['query']) ? md5($this->options['query']) : '';
+    return "alpha_pagination:{$language->language}:{$this->view->name}:{$this->view->current_display}:$query";
+  }
 
   /**
    * Retrieves numeric characters, based on langcode.
@@ -748,7 +740,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
         $items = array_merge(array('all'), $items);
       }
       else {
-        $items[] =  'all';
+        $items[] = 'all';
       }
     }
 
@@ -833,7 +825,8 @@ class alpha_pagination_handler_pagination extends views_handler_area {
             // Format field name and table for single value fields
             $field = $this->options['paginate_view_field'] . '_value';
             $table = 'field_data_' . $this->options['paginate_view_field'];
-          } else {
+          }
+          else {
             // Format field name and table for compound value fields
             $field = str_replace(':', '_', $this->options['paginate_view_field']);
             $field_name_components = explode(':', $this->options['paginate_view_field']);
@@ -862,7 +855,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
    * @return array
    *   An indexed array of entity identifiers.
    */
-  protected function getEntityIds () {
+  protected function getEntityIds() {
     $this->ensureQuery();
     $query_parts = explode("\n", $this->options['query']);
 
@@ -899,9 +892,9 @@ class alpha_pagination_handler_pagination extends views_handler_area {
     // These will be used to generate the pagination items.
     $entity_ids = array();
     $result = db_query($query);
-    while($data = $result->fetchObject()) {
+    while ($data = $result->fetchObject()) {
       $entity_ids[] = $data->$base_field;
     }
     return $entity_ids;
-  } 
+  }
 }

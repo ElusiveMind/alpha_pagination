@@ -2,17 +2,7 @@
 
 /**
  * @file
- * Controls access to our view and administrative settings.
- *
- * @author Michael R. Bagnall (@mbagnall17)
- * @version 1.0
- * @copyright 2015 FlyingFlip Studios, LLC. (@flyingflip)
- * @link http://www.michaelbagnall.com
- *
- * @license
- * Copyright (c) 2015 FlyingFlip Studios, LLC.
- * This software is open-source licensed under the GNU Public License Version 2 or later
- * The full license is available in the LICENSE.TXT file at the root of this repository
+ * Module hooks and alters for the Views Alpha Pagination module.
  */
 
 /**
@@ -48,6 +38,8 @@ function alpha_pagination_node_presave($entity) {
 
 /**
  * Implements hook_help().
+ *
+ * @todo Remove inline styling.
  */
 function alpha_pagination_help($path, $arg) {
   $output = NULL;
@@ -77,7 +69,7 @@ function alpha_pagination_help($path, $arg) {
       $output .= '<div style="border-top: 2px solid #f8981d; margin: 15px 0px; padding-top: 15px; width: 100%; font-size: 8pt; line-height: 1.3em;">';
       $output .= '<img src="/' . drupal_get_path('module', 'alpha_pagination') . '/images/flyingflip-logo.png" width="151" height="50" alt="FlyingFlip Studios" align="right" /><br />';
       $output .= 'Released 2016 - v7.x-1.x - FlyingFlip Studios, LLC. - Released under GNU GENERAL PUBLIC LICENSE - Version 2, June 1991<br />http://www.flyingflip.com - @flyingflip - @mbagnall17<br clear="right">';
-      $output .= '<style>.item-list, hr { display: none; }</style></div>';      
+      $output .= '<style>.item-list, hr { display: none; }</style></div>';
       break;
     default:
       break;
