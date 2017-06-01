@@ -29,7 +29,7 @@ class AlphaPaginationHelper {
    *   An array of classes to be used in a render array.
    */
   public function addClasses($classes, array &$attributes) {
-    $processed = array();
+    $processed = [];
 
     // Sanitize any classes provided for the item list.
     foreach ((array) $classes as $v) {
@@ -41,7 +41,7 @@ class AlphaPaginationHelper {
     // Don't add any classes if it's empty, which will add an empty attribute.
     if ($processed) {
       if (!isset($attributes['class'])) {
-        $attributes['class'] = array();
+        $attributes['class'] = [];
       }
       $attributes['class'] = array_unique(array_merge($attributes['class'], $processed));
     }
@@ -62,13 +62,13 @@ class AlphaPaginationHelper {
    * @return array
    *   A render array for the link.
    */
-  public function buildLink($text, $value, array $options = array()) {
+  public function buildLink($text, $value, array $options = []) {
     // Merge in options.
-    $options = drupal_array_merge_deep(array(
-      'attributes' => array(),
+    $options = drupal_array_merge_deep([
+      'attributes' => [],
       'html' => FALSE,
       'query' => drupal_get_query_parameters(),
-    ), $options);
+    ], $options);
 
     // Merge in classes.
     $this->addClasses('paginate_link_class', $options['attributes']);
@@ -91,12 +91,12 @@ class AlphaPaginationHelper {
     }
 
     // Build link render array.
-    return array(
+    return [
       '#theme' => 'link__alpha_pagination',
       '#text' => $text,
       '#path' => $path,
       '#options' => $options,
-    );
+    ];
   }
 
   /**
@@ -113,39 +113,39 @@ class AlphaPaginationHelper {
 
     if (!isset($build)) {
       if (module_exists('token')) {
-        $build = array(
+        $build = [
           '#type' => 'container',
           '#title' => t('Browse available tokens'),
-        );
-        $build['help'] = array(
+        ];
+        $build['help'] = [
           '#theme' => 'token_tree_link',
-          '#token_types' => array('alpha_pagination'),
+          '#token_types' => ['alpha_pagination'],
           '#global_types' => TRUE,
           '#dialog' => TRUE,
-        );
+        ];
       }
       else {
-        $build = array(
+        $build = [
           '#type' => 'fieldset',
           '#title' => 'Available tokens',
           '#collapsible' => TRUE,
           '#collapsed' => TRUE,
-        );
-        $items = array();
+        ];
+        $items = [];
         $token_info = alpha_pagination_token_info();
         foreach ($token_info['tokens'] as $_type => $_tokens) {
           foreach ($_tokens as $_token => $_data) {
             $items[] = "[$_type:$_token] - {$_data['description']}";
           }
         }
-        $build['help'] = array(
+        $build['help'] = [
           '#theme' => 'item_list',
           '#items' => $items,
-        );
+        ];
       }
     }
 
-    return isset($fieldset) ? array('#fieldset' => $fieldset) + $build : $build;
+    return isset($fieldset) ? ['#fieldset' => $fieldset] + $build : $build;
   }
 
   /**
@@ -159,17 +159,17 @@ class AlphaPaginationHelper {
    * @todo Need to make this better somehow?
    */
   public function ensureQuery() {
-    if (empty($this->getOption('query')) && !empty($this->handler->view->build_info['query'])) {
+    if ($this->getOption('query') && !empty($this->handler->view->build_info['query'])) {
       /** @var \SelectQuery $query */
       $query = $this->handler->view->build_info['query'];
       $quoted = $query->getArguments();
       $connection = Database::getConnection();
       foreach ($quoted as $key => $val) {
         if (is_array($val)) {
-          $quoted[$key] = implode(', ', array_map(array(
+          $quoted[$key] = implode(', ', array_map([
             $connection,
             'quote',
-          ), $val));
+          ], $val));
         }
         else {
           $quoted[$key] = $connection->quote($val);
@@ -199,7 +199,7 @@ class AlphaPaginationHelper {
     global $language;
 
     // Default (English).
-    static $default = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
+    static $default = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
     static $alphabets;
 
     // If the langcode is not explicitly specified, default to global langcode.
@@ -217,13 +217,13 @@ class AlphaPaginationHelper {
       // Build alphabets.
       else {
         // Arabic.
-        $alphabets['ar'] = array('ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'و', 'ه', 'ي');
+        $alphabets['ar'] = ['ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'و', 'ه', 'ي'];
 
         // English. Initially the default value, but can be modified in alter.
         $alphabets['en'] = $default;
 
         // Русский (Russian).
-        $alphabets['ru'] = array('А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И', 'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ы', 'Э', 'Ю', 'Я');
+        $alphabets['ru'] = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И', 'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ы', 'Э', 'Ю', 'Я'];
 
         // Allow modules and themes to alter alphabets.
         drupal_alter('alpha_pagination_alphabet', $alphabets, $this);
@@ -246,8 +246,8 @@ class AlphaPaginationHelper {
    * @return \views_handler_area_alpha_pagination[]
    *   An array of alpha pagination areas.
    */
-  public function getAreaHandlers(array $types = array('header', 'footer')) {
-    $areas = array();
+  public function getAreaHandlers(array $types = ['header', 'footer']) {
+    $areas = [];
     foreach ($types as $type) {
       foreach ($this->handler->view->display_handler->get_handlers($type) as $handler) {
         if ($handler instanceof \views_handler_area_alpha_pagination) {
@@ -267,7 +267,7 @@ class AlphaPaginationHelper {
   public function getCid() {
     global $language;
     $this->ensureQuery();
-    $query = !empty($this->getOption('query')) ? md5($this->getOption('query')) : '';
+    $query = $this->getOption('query') ? md5($this->getOption('query')) : '';
     return "alpha_pagination:{$language->language}:{$this->handler->view->name}:{$this->handler->view->current_display}:$query";
   }
 
@@ -316,7 +316,7 @@ class AlphaPaginationHelper {
 
     // Based on our query, get the list of entity identifiers that are affected.
     // These will be used to generate the pagination items.
-    $entity_ids = array();
+    $entity_ids = [];
     $result = db_query($query);
     while ($data = $result->fetchObject()) {
       $entity_ids[] = $data->$base_field;
@@ -338,7 +338,7 @@ class AlphaPaginationHelper {
    *   An indexed array containing a unique array of entity prefixes.
    */
   public function getEntityPrefixes() {
-    $prefixes = array();
+    $prefixes = [];
 
     if ($entity_ids = $this->getEntityIds()) {
       switch ($this->getOption('paginate_view_field')) {
@@ -379,7 +379,7 @@ class AlphaPaginationHelper {
       }
       $result = db_query('SELECT DISTINCT(SUBSTR(' . $field . ', 1, 1)) AS prefix
                           FROM {' . $table . '}
-                          WHERE ' . $where . ' IN ( :nids )', array(':nids' => $entity_ids));
+                          WHERE ' . $where . ' IN ( :nids )', [':nids' => $entity_ids]);
       while ($data = $result->fetchObject()) {
         $prefixes[] = is_numeric($data->prefix) ? $data->prefix : drupal_strtoupper($data->prefix);
       }
@@ -408,9 +408,9 @@ class AlphaPaginationHelper {
     $items = $this->getAlphabet();
 
     // Append or prepend numeric items.
-    $numbers = $this->getOption('paginate_view_numbers') == 2 ? array(check_plain($this->getOption('paginate_numeric_label'))) : $this->getNumbers();
-    if (!empty($this->getOption('paginate_view_numbers'))) {
-      $numeric_divider = $this->getOption('paginate_numeric_divider') ? array('-') : array();
+    $numbers = $this->getOption('paginate_view_numbers') == 2 ? [check_plain($this->getOption('paginate_numeric_label'))] : $this->getNumbers();
+    if ($this->getOption('paginate_view_numbers')) {
+      $numeric_divider = $this->getOption('paginate_numeric_divider') ? ['-'] : [];
       if ($this->getOption('paginate_numeric_position') === 'after') {
         $items = array_merge($items, $numeric_divider, $numbers);
       }
@@ -420,9 +420,9 @@ class AlphaPaginationHelper {
     }
 
     // Append or prepend the "all" item.
-    if (!empty($this->getOption('paginate_all_display'))) {
+    if ($this->getOption('paginate_all_display')) {
       if ($this->getOption('paginate_all_position') === 'before') {
-        $items = array_merge(array('all'), $items);
+        $items = array_merge(['all'], $items);
       }
       else {
         $items[] = 'all';
@@ -487,7 +487,7 @@ class AlphaPaginationHelper {
     global $language;
 
     // Default (English).
-    static $default = array('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
+    static $default = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
     static $numbers;
 
     // If the langcode is not explicitly specified, default to global langcode.
@@ -547,12 +547,12 @@ class AlphaPaginationHelper {
    * @see alpha_pagination_tokens()
    */
   public function getTokens($value = NULL) {
-    return array(
-      'alpha_pagination' => array(
+    return [
+      'alpha_pagination' => [
         'path' => $this->getUrl(),
         'value' => $value,
-      ),
-    );
+      ],
+    ];
   }
 
   /**
@@ -598,8 +598,8 @@ class AlphaPaginationHelper {
         return $url;
       }
 
-      $pieces = array();
-      $argument_keys = isset($this->handler->view->argument) ? array_keys($this->handler->view->argument) : array();
+      $pieces = [];
+      $argument_keys = isset($this->handler->view->argument) ? array_keys($this->handler->view->argument) : [];
       $id = current($argument_keys);
       foreach (explode('/', $path) as $piece) {
         if ($piece != '%') {
@@ -671,9 +671,9 @@ class AlphaPaginationHelper {
    * {@inheritdoc}
    */
   public function validate() {
-    static $validated = array();
+    static $validated = [];
 
-    $errors = array();
+    $errors = [];
     if (!isset($validated[$this->handler->view->name . ':' . $this->handler->view->current_display])) {
       $validated[$this->handler->view->name . ':' . $this->handler->view->current_display] = TRUE;
 
@@ -681,18 +681,18 @@ class AlphaPaginationHelper {
 
       // Show an error if not found.
       if (!$areas) {
-        $errors[] = t('The view "@name:@display" must have at least one configured alpha pagination area in either the header or footer to use "@field".', array(
+        $errors[] = t('The view "@name:@display" must have at least one configured alpha pagination area in either the header or footer to use "@field".', [
           '@field' => $this->handler->real_field,
           '@name' => $this->handler->view->name,
           '@display' => $this->handler->view->current_display,
-        ));
+        ]);
       }
       // Show an error if there is more than one instance.
       elseif (count($areas) > 1) {
-        $errors[] = t('The view "@name:@display" can only have one configured alpha pagination area in either the header or footer.', array(
+        $errors[] = t('The view "@name:@display" can only have one configured alpha pagination area in either the header or footer.', [
           '@name' => $this->handler->view->name,
           '@display' => $this->handler->view->current_display,
-        ));
+        ]);
       }
 
     }

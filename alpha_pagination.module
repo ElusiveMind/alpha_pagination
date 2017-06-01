@@ -9,23 +9,23 @@
  * Implements hook_views_api().
  */
 function alpha_pagination_views_api() {
-  return array(
+  return [
     'api' => 2,
     'path' => drupal_get_path('module', 'alpha_pagination') . '/views',
-  );
+  ];
 }
 
 /**
  * Implements hook_library().
  */
 function alpha_pagination_library() {
-  $libraries['alpha_pagination'] = array(
+  $libraries['alpha_pagination'] = [
     'title' => 'Views Alpha Pagination',
     'website' => 'https://www.drupal.org/project/alpha_pagination',
-    'css' => array(
-      drupal_get_path('module', 'alpha_pagination') . '/css/alpha_pagination.css' => array(),
-    ),
-  );
+    'css' => [
+      drupal_get_path('module', 'alpha_pagination') . '/css/alpha_pagination.css' => [],
+    ],
+  ];
   return $libraries;
 }
 
@@ -83,19 +83,19 @@ function alpha_pagination_help($path, $arg) {
  * @see \views_handler_area_alpha_pagination::getTokens()
  */
 function alpha_pagination_token_info() {
-  $info['types']['alpha_pagination'] = array(
+  $info['types']['alpha_pagination'] = [
     'name' => t('Views Alpha Pagination'),
     'description' => t('Tokens related to the current alpha pagination display on the view.'),
     'needs-data' => 'alpha_pagination',
-  );
-  $info['tokens']['alpha_pagination']['path'] = array(
+  ];
+  $info['tokens']['alpha_pagination']['path'] = [
     'name' => t('Path'),
     'description' => t('The current path of the view (if page display) or current_path().'),
-  );
-  $info['tokens']['alpha_pagination']['value'] = array(
+  ];
+  $info['tokens']['alpha_pagination']['value'] = [
     'name' => t('Value'),
     'description' => t('The current character value.'),
-  );
+  ];
   return $info;
 }
 
@@ -106,9 +106,9 @@ function alpha_pagination_token_info() {
  *
  * @see \views_handler_area_alpha_pagination::getTokens()
  */
-function alpha_pagination_tokens($type, $tokens, array $data = array(), array $options = array()) {
+function alpha_pagination_tokens($type, $tokens, array $data = [], array $options = []) {
   $sanitize = !empty($options['sanitize']);
-  $replacements = array();
+  $replacements = [];
   if ($type === 'alpha_pagination' && !empty($data['alpha_pagination']) && ($alpha_pagination = $data['alpha_pagination'])) {
     foreach ($tokens as $name => $original) {
       if (isset($alpha_pagination[$name])) {

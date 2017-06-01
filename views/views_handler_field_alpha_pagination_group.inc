@@ -91,14 +91,14 @@ class views_handler_field_alpha_pagination_group extends \views_handler_field {
     // use the "html_tag" type so only the name attribute is printed.
     if ($value && $path && $path[0] === '#') {
       $name = token_replace(substr($path, 1), $helper->getTokens($value));
-      $value = array(
+      $value = [
         '#type' => 'html_tag',
         '#theme' => 'html_tag__alpha_pagination__anchor',
         '#tag' => 'a',
         '#value' => '',
-        '#attributes' => array('name' => $name),
+        '#attributes' => ['name' => $name],
         '#suffix' => $value,
-      );
+      ];
     }
 
     return $value;
