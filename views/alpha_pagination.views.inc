@@ -13,9 +13,17 @@ function alpha_pagination_views_data() {
   $data['views']['alpha_pagination'] = array(
     'title' => t('Alpha Pagination'),
     'group' => 'Global',
-    'help' => t('Area handler to add our alphabetic pagination.'),
     'area' => array(
-      'handler' => 'alpha_pagination_handler_pagination',
+      'help' => t('Adds alphanumeric pagination.'),
+      'handler' => 'views_handler_area_alpha_pagination',
+    ),
+  );
+  $data['views']['alpha_pagination_group'] = array(
+    'title' => t('Alpha Pagination'),
+    'group' => 'Global',
+    'field' => array(
+      'help' => t('Adds an automated field that can be used to group by the alphanumeric pagination prefix.'),
+      'handler' => 'views_handler_field_alpha_pagination_group',
     ),
   );
   return $data;

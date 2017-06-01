@@ -80,7 +80,7 @@ function alpha_pagination_help($path, $arg) {
 /**
  * Implements hook_token_info().
  *
- * @see \alpha_pagination_handler_pagination::getTokens()
+ * @see \views_handler_area_alpha_pagination::getTokens()
  */
 function alpha_pagination_token_info() {
   $info['types']['alpha_pagination'] = array(
@@ -104,7 +104,7 @@ function alpha_pagination_token_info() {
  *
  * {@inheritdoc}
  *
- * @see \alpha_pagination_handler_pagination::getTokens()
+ * @see \views_handler_area_alpha_pagination::getTokens()
  */
 function alpha_pagination_tokens($type, $tokens, array $data = array(), array $options = array()) {
   $sanitize = !empty($options['sanitize']);

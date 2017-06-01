@@ -16,12 +16,12 @@
  *   An associative array of key/value pairs, passed by reference. Each key is
  *   a corresponding langcode and its value is an indexed array of characters
  *   for that langcode.
- * @param \alpha_pagination_handler_pagination $view
+ * @param \views_handler_area_alpha_pagination $view
  *   The View instance.
  *
- * @see \alpha_pagination_handler_pagination::getAlphabet()
+ * @see \views_handler_area_alpha_pagination::getAlphabet()
  */
-function hook_alpha_pagination_alphabet_alter(array &$alphabets, \alpha_pagination_handler_pagination $view) {
+function hook_alpha_pagination_alphabet_alter(array &$alphabets, \views_handler_area_alpha_pagination $view) {
   // Remove Z from the list.
   array_pop($alphabets['en']);
 }
@@ -37,12 +37,12 @@ function hook_alpha_pagination_alphabet_alter(array &$alphabets, \alpha_paginati
  *   An associative array of key/value pairs, passed by reference. Each key is
  *   a corresponding langcode and its value is an indexed array of numbers
  *   for that langcode.
- * @param \alpha_pagination_handler_pagination $view
+ * @param \views_handler_area_alpha_pagination $view
  *   The View instance.
  *
- * @see \alpha_pagination_handler_pagination::getNumbers()
+ * @see \views_handler_area_alpha_pagination::getNumbers()
  */
-function hook_alpha_pagination_numbers_alter(array &$numbers, \alpha_pagination_handler_pagination $view) {
+function hook_alpha_pagination_numbers_alter(array &$numbers, \views_handler_area_alpha_pagination $view) {
   // Remove 0 from the list.
   array_shift($numbers['en']);
 }

@@ -6,4 +6,6 @@ core = 7.x
 dependencies[] = entity
 dependencies[] = views
 
-files[] = views/alpha_pagination_handler_pagination.inc
+files[] = views/AlphaPaginationHelper.inc
+files[] = views/views_handler_area_alpha_pagination.inc
+files[] = views/views_handler_field_alpha_pagination_group.inc
