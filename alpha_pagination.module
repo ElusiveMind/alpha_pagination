@@ -6,37 +6,6 @@
  */
 
 /**
- * Implements hook_views_api().
- */
-function alpha_pagination_views_api() {
-  return [
-    'api' => 2,
-    'path' => drupal_get_path('module', 'alpha_pagination') . '/views',
-  ];
-}
-
-/**
- * Implements hook_library().
- */
-function alpha_pagination_library() {
-  $libraries['alpha_pagination'] = [
-    'title' => 'Views Alpha Pagination',
-    'website' => 'https://www.drupal.org/project/alpha_pagination',
-    'css' => [
-      drupal_get_path('module', 'alpha_pagination') . '/css/alpha_pagination.css' => [],
-    ],
-  ];
-  return $libraries;
-}
-
-/**
- * Implements hook_node_presave().
- */
-function alpha_pagination_node_presave($entity) {
-  cache_clear_all('alpha_pagination:*', 'cache', TRUE);
-}
-
-/**
  * Implements hook_help().
  *
  * @todo Remove inline styling.
@@ -75,6 +44,20 @@ function alpha_pagination_help($path, $arg) {
       break;
   }
   return $output;
+}
+
+/**
+ * Implements hook_library().
+ */
+function alpha_pagination_library() {
+  $libraries['alpha_pagination'] = [
+    'title' => 'Views Alpha Pagination',
+    'website' => 'https://www.drupal.org/project/alpha_pagination',
+    'css' => [
+      drupal_get_path('module', 'alpha_pagination') . '/css/alpha_pagination.css' => [],
+    ],
+  ];
+  return $libraries;
 }
 
 /**
@@ -130,6 +113,13 @@ function alpha_pagination_migrate_option($type, $from, $to, callable $callback) 
 
     return $save;
   });
+}
+
+/**
+ * Implements hook_node_presave().
+ */
+function alpha_pagination_node_presave($entity) {
+  cache_clear_all('alpha_pagination:*', 'cache', TRUE);
 }
 
 /**
@@ -273,4 +263,39 @@ function alpha_pagination_tokens($type, $tokens, array $data = [], array $option
     }
   }
   return $replacements;
+}
+
+
+/**
+ * Implements hook_views_api().
+ */
+function alpha_pagination_views_api() {
+  return [
+    'api' => 2,
+    'path' => drupal_get_path('module', 'alpha_pagination') . '/views',
+  ];
+}
+
+/**
+ * Implements hook_views_data().
+ */
+function alpha_pagination_views_data() {
+  $data = [];
+  $data['views']['alpha_pagination'] = [
+    'title' => t('Alpha Pagination'),
+    'group' => 'Global',
+    'area' => [
+      'help' => t('Adds alphanumeric pagination.'),
+      'handler' => 'views_handler_area_alpha_pagination',
+    ],
+  ];
+  $data['views']['alpha_pagination_group'] = [
+    'title' => t('Alpha Pagination'),
+    'group' => 'Global',
+    'field' => [
+      'help' => t('Adds an automated field that can be used to group by the alphanumeric pagination prefix.'),
+      'handler' => 'views_handler_field_alpha_pagination_group',
+    ],
+  ];
+  return $data;
 }

@@ -3,7 +3,7 @@
 /**
  * A base views handler for alpha pagination.
  */
-class AlphaPaginationHelper {
+class AlphaPagination {
 
   /**
    * @var \views_handler
@@ -15,6 +15,25 @@ class AlphaPaginationHelper {
    */
   public function __construct(views_handler $handler) {
     $this->handler = $handler;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function __sleep() {
+    $this->_handler = implode(':', [$this->handler->view->name, $this->handler->view->current_display, $this->handler->handler_type, $this->handler->real_field ?: $this->handler->field]);
+    return ['_handler'];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function __wakeup() {
+    list($name, $display_id, $type, $id) = explode(':', $this->_handler);
+    $view = views_get_view($name);
+    $view->set_display($display_id);
+    $this->handler = $view->display_handler->get_handler($type, $id);
+    unset($this->_handler);
   }
 
   /**
@@ -47,56 +66,6 @@ class AlphaPaginationHelper {
     }
 
     return $classes;
-  }
-
-  /**
-   * Builds a link render array based on current text, value and options.
-   *
-   * @param string $text
-   *   The current text label.
-   * @param string $value
-   *   The current value.
-   * @param array $options
-   *   Optional. Array of options to pass to url().
-   *
-   * @return array
-   *   A render array for the link.
-   */
-  public function buildLink($text, $value, array $options = []) {
-    // Merge in options.
-    $options = drupal_array_merge_deep([
-      'attributes' => [],
-      'html' => FALSE,
-      'query' => drupal_get_query_parameters(),
-    ], $options);
-
-    // Merge in classes.
-    $this->addClasses($this->getOption('paginate_link_class'), $options['attributes']);
-
-    $path = token_replace($this->getOption('paginate_link_path'), $this->getTokens($value));
-
-    // Determine if link is external (automatically enforcing for anchors).
-    if ($this->getOption('paginate_link_external') || ($path && $path[0] === '#')) {
-      $options['external'] = TRUE;
-    }
-
-    // Add in additional attributes.
-    if ($this->getOption('paginate_link_attributes')) {
-      $attributes = $this->parseAttributes($this->getOption('paginate_link_attributes'), $this->getTokens($value));
-      // Remove any class attributes (should use the dedicated class option).
-      unset($attributes['class']);
-
-      // Merge in the attributes.
-      $options['attributes'] = drupal_array_merge_deep($options['attributes'], $attributes);
-    }
-
-    // Build link render array.
-    return [
-      '#theme' => 'link__alpha_pagination',
-      '#text' => $text,
-      '#path' => $path,
-      '#options' => $options,
-    ];
   }
 
   /**
@@ -259,6 +228,140 @@ class AlphaPaginationHelper {
   }
 
   /**
+   * Retrieves the characters used to populate the pagination item list.
+   *
+   * @return \AlphaPaginationCharacter[]
+   *   An associative array containing AlphaPaginationCharacter objects, keyed
+   *   by its value.
+   */
+  public function getCharacters() {
+    /** @var \AlphaPaginationCharacter[] $characters */
+    static $characters;
+
+    if (!isset($characters)) {
+      $all = $this->getOption('paginate_all_display') === '1' ? $this->getOption('paginate_all_label', t('All')) : '';
+      $all_value = $this->getOption('paginate_all_value', 'all');
+      $numeric_label = $this->getOption('paginate_numeric_label');
+      $numeric_type = $this->getOption('paginate_view_numbers', '0');
+      $numeric_value = $this->getOption('paginate_numeric_value');
+      $numeric_divider = $numeric_type !== '2' && $this->getOption('paginate_numeric_divider') ? ['-' => ''] : [];
+
+      // Check to see if this query is cached. If it is, then just pull our
+      // results set from it so that things can move quickly through here. We're
+      // caching in the event the view has a very large result set.
+      $cid = $this->getCid();
+      if (($cache = cache_get($cid)) && !empty($cache->data)) {
+        $characters = $cache->data;
+      }
+      else {
+        // Add alphabet characters.
+        foreach ($this->getAlphabet() as $value) {
+          $characters[$value] = $value;
+        }
+
+        // Append or prepend numeric item(s).
+        $numeric = [];
+        if ($numeric_type !== '0') {
+
+          // Determine type of numeric items.
+          if ($numeric_type === '2') {
+            $numeric[$numeric_value] = check_plain($numeric_label);
+          }
+          else {
+            foreach ($this->getNumbers() as $value) {
+              $numeric[$value] = $value;
+            }
+          }
+
+          // Merge in numeric items.
+          if ($this->getOption('paginate_numeric_position') === 'after') {
+            $characters = array_merge($characters, $numeric_divider, $numeric);
+          }
+          else {
+            $characters = array_merge($numeric, $numeric_divider, $characters);
+          }
+        }
+
+        // Append or prepend the "all" item.
+        if ($all) {
+          if ($this->getOption('paginate_all_position') === 'before') {
+            $characters = [$all_value => $all] + $characters;
+          }
+          else {
+            $characters[$all_value] = $all;
+          }
+        }
+
+        // Convert characters to objects.
+        foreach ($characters as $value => $label) {
+          $characters[$value] = new AlphaPaginationCharacter($this, $label, $value);
+        }
+
+        // Determine enabled prefixes.
+        $prefixes = $this->getEntityPrefixes();
+        foreach ($prefixes as $value) {
+          // Ensure numeric prefixes use the numeric label, if necessary.
+          if ($this->isNumeric($value) && $numeric_type === '2') {
+            $value = $numeric_value;
+          }
+          if (isset($characters[$value])) {
+            $characters[$value]->setEnabled(TRUE);
+          }
+        }
+
+        // Remove all empty prefixes.
+        if (!$this->getOption('paginate_toggle_empty')) {
+          // Ensure "all" and numeric divider objects aren't removed.
+          if ($all) {
+            $prefixes[] = $all_value;
+          }
+          if ($numeric_divider) {
+            $prefixes[] = '-';
+          }
+          // Determine if numeric results are not empty.
+          $characters = array_filter(array_intersect_key($characters, array_flip($prefixes)));
+        }
+
+        // Remove all numeric values if they're all empty.
+        if ($this->getOption('paginate_numeric_hide_empty')) {
+          // Determine if numeric results are not empty.
+          $numeric_results = array_filter(array_intersect_key($characters, array_flip($numeric)));
+          if (!$numeric_results) {
+            $characters = array_diff_key($characters, array_flip($numeric));
+          }
+        }
+
+        // Cache the results.
+        cache_set($cid, $characters, 'cache');
+      }
+
+      // Default current value to "all", if enabled, or the first character.
+      $current = $all ? $all_value : '';
+
+      // Attempt to determine if a valid argument was provided.
+      $arg_count = count($this->handler->view->args);
+      if ($arg_count) {
+        $arg = $this->handler->view->args[$arg_count - 1];
+        if ($arg && in_array($arg, array_keys($characters))) {
+          $current = $arg;
+        }
+      }
+
+      // Determine the first active character.
+      if ($current) {
+        foreach ($characters as $character) {
+          if ($character->isNumeric() && $numeric_type === '2' ? $numeric_value === $current : $character->getValue() === $current) {
+            $character->setActive(TRUE);
+            break;
+          }
+        }
+      }
+    }
+
+    return $characters;
+  }
+
+  /**
    * Retrieves a cache identifier for the view, display and query, if set.
    *
    * @return string
@@ -267,8 +370,14 @@ class AlphaPaginationHelper {
   public function getCid() {
     global $language;
     $this->ensureQuery();
-    $query = $this->getOption('query') ? md5($this->getOption('query')) : '';
-    return "alpha_pagination:{$language->language}:{$this->handler->view->name}:{$this->handler->view->current_display}:$query";
+    $data = [
+      'langcode' => $language->language,
+      'view' => $this->handler->view->name,
+      'display' => $this->handler->view->current_display,
+      'query' => $this->getOption('query') ? md5($this->getOption('query')) : '',
+      'options' => $this->handler->options,
+    ];
+    return 'alpha_pagination:' .  drupal_hash_base64(serialize($data));
   }
 
   /**
@@ -388,83 +497,27 @@ class AlphaPaginationHelper {
   }
 
   /**
-   * Retrieves the items used to populate the pagination item list.
+   * Retrieves the proper label for a character.
    *
-   * @return array
-   *   An associative array containing the result state as the value, keyed by
-   *   the letter, number or "all".
+   * @param $value
+   *   The value of the label to retrieve.
+   *
+   * @return string
+   *   The label.
    */
-  public function getItems() {
+  public function getLabel($value) {
+    $characters = $this->getCharacters();
 
-    // Check to see if this query is cached. If it is, then just pull our
-    // results set from it so that things can move quickly through here. We're
-    // caching in the event the view has a very large result set.
-    $cid = $this->getCid();
-    if (($cache = cache_get($cid)) && !empty($cache->data)) {
-      return $cache->data;
+    // Return an appropriate numeric label.
+    if ($this->getOption('paginate_view_numbers') === '2' && $this->isNumeric($value)) {
+      return $characters[$this->getOption('paginate_numeric_value')]->getLabel();
+    }
+    elseif (isset($characters[$value])) {
+      return $characters[$value]->getLabel();
     }
 
-    // Retrieve the alphabet characters.
-    $items = $this->getAlphabet();
-
-    // Append or prepend numeric items.
-    $numbers = $this->getOption('paginate_view_numbers') == 2 ? [check_plain($this->getOption('paginate_numeric_label'))] : $this->getNumbers();
-    if ($this->getOption('paginate_view_numbers')) {
-      $numeric_divider = $this->getOption('paginate_numeric_divider') ? ['-'] : [];
-      if ($this->getOption('paginate_numeric_position') === 'after') {
-        $items = array_merge($items, $numeric_divider, $numbers);
-      }
-      else {
-        $items = array_merge($numbers, $numeric_divider, $items);
-      }
-    }
-
-    // Append or prepend the "all" item.
-    if ($this->getOption('paginate_all_display')) {
-      if ($this->getOption('paginate_all_position') === 'before') {
-        $items = array_merge(['all'], $items);
-      }
-      else {
-        $items[] = 'all';
-      }
-    }
-
-    // Initialize the results with FALSE values so each prefix is disabled by
-    // default. They're later filled in as TRUE below when there is actual
-    // entity prefixes that exist.
-    $results = array_fill_keys($items, FALSE);
-
-    // Retrieve the entity prefixes.
-    if ($prefixes = $this->getEntityPrefixes()) {
-      // Ensure that "all" is TRUE if there are prefixes.
-      if (isset($results['all'])) {
-        $results['all'] = TRUE;
-      }
-
-      // Set prefixes to TRUE if it exists from the default list that was
-      // constructed from view options above.
-      foreach ($prefixes as $prefix) {
-        if (is_numeric($prefix) && $this->getOption('paginate_view_numbers') == 2) {
-          $prefix = $this->getOption('paginate_numeric_label');
-        }
-        if (isset($results[$prefix])) {
-          $results[$prefix] = TRUE;
-        }
-      }
-    }
-
-    // Remove all numeric values if they're all empty.
-    if ($this->getOption('paginate_numeric_hide_empty')) {
-      // Determine if numeric results are not empty.
-      $numeric_results = array_filter(array_intersect_key($results, array_flip($numbers)));
-      if (!$numeric_results) {
-        $results = array_diff_key($results, array_flip($numbers));
-      }
-    }
-
-    // Cache the results.
-    cache_set($cid, $results, 'cache');
-    return $results;
+    // Return the original value.
+    return $value;
   }
 
   /**
@@ -520,18 +573,18 @@ class AlphaPaginationHelper {
   }
 
   /**
-   * Retrieves an option from the views handler.
+   * Retrieves an option from the view handler.
    *
    * @param string $name
    *   The option name to retrieve.
    * @param mixed $default
    *   The default value to return if not set.
    *
-   * @return mixed
+   * @return string
    *   The option value or $default if not set.
    */
-  public function getOption($name, $default = NULL) {
-    return isset($this->handler->options[$name]) ? $this->handler->options[$name] : $default;
+  public function getOption($name, $default = '') {
+    return (string) (isset($this->handler->options[$name]) ? $this->handler->options[$name] : $default);
   }
 
   /**
@@ -591,7 +644,7 @@ class AlphaPaginationHelper {
       if (empty($path) || (empty($args) && strpos($path, '%') === FALSE)) {
         $path = current_path();
         $pieces = explode('/', $path);
-        if (array_key_exists(end($pieces), $this->getItems())) {
+        if (array_key_exists(end($pieces), $this->getCharacters())) {
           array_pop($pieces);
         }
         $url = implode('/', $pieces);
@@ -630,6 +683,43 @@ class AlphaPaginationHelper {
       $url = implode('/', $pieces);
     }
     return $url;
+  }
+
+  /**
+   * Retrieves the proper value for a character.
+   *
+   * @param $value
+   *   The value to retrieve.
+   *
+   * @return string
+   *   The value.
+   */
+  public function getValue($value) {
+    $characters = $this->getCharacters();
+
+    // Return an appropriate numeric label.
+    if ($this->getOption('paginate_view_numbers') === '2' && $this->isNumeric($value)) {
+      return $characters[$this->getOption('paginate_numeric_value')]->getValue();
+    }
+    elseif (isset($characters[$value])) {
+      return $characters[$value]->getLabel();
+    }
+
+    // Return the original value.
+    return $value;
+  }
+
+  /**
+   * Determines if value is "numeric".
+   *
+   * @param string $value
+   *   The value to test.
+   *
+   * @return bool
+   *   TRUE or FALSE
+   */
+  public function isNumeric($value) {
+    return ($this->getOption('paginate_view_numbers') === '2' && $value === $this->getOption('paginate_numeric_value')) || in_array($value, $this->getNumbers());
   }
 
   /**

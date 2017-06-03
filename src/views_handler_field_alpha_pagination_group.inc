@@ -8,15 +8,15 @@
 class views_handler_field_alpha_pagination_group extends \views_handler_field {
 
   /**
-   * @var \AlphaPaginationHelper
+   * @var \AlphaPagination
    */
-  protected $helper;
+  private $alphaPagination;
 
   /**
    * {@inheritdoc}
    */
   public function construct() {
-    $this->helper = new AlphaPaginationHelper($this);
+    $this->alphaPagination = new AlphaPagination($this);
     parent::construct();
   }
 
@@ -58,16 +58,16 @@ class views_handler_field_alpha_pagination_group extends \views_handler_field {
    * {@inheritdoc}
    */
   function render($values) {
-    $areas = $this->helper->getAreaHandlers();
+    $areas = $this->alphaPagination->getAreaHandlers();
 
     // Immediately return if there is no handler.
     if (!$areas) {
       return '';
     }
 
-    $helper = new AlphaPaginationHelper($areas[0]);
-    $path = $helper->getOption('paginate_link_path');
-    $field_name = $helper->getOption('paginate_view_field');
+    $alpha_pagination = new AlphaPagination($areas[0]);
+    $path = $alpha_pagination->getOption('paginate_link_path');
+    $field_name = $alpha_pagination->getOption('paginate_view_field');
 
     if (!isset($this->view->field[$field_name])) {
       return '';
@@ -82,7 +82,8 @@ class views_handler_field_alpha_pagination_group extends \views_handler_field {
     }
 
     // Return just the first character of the value.
-    $value = !empty($field->last_render_text) ? drupal_ucfirst(substr(strip_tags($field->last_render_text), 0, 1)) : '';
+    $value = $alpha_pagination->getValue(!empty($field->last_render_text) ? drupal_ucfirst(substr(strip_tags($field->last_render_text), 0, 1)) : '');
+    $label = $alpha_pagination->getLabel($value);
 
     // Prepend an anchor if the link path starts with #. Using the "link"
     // element will cause an empty href attribute to be printed. This can cause
@@ -90,32 +91,32 @@ class views_handler_field_alpha_pagination_group extends \views_handler_field {
     // attribute is simply present, regardless if it's empty. To avoid that,
     // use the "html_tag" type so only the name attribute is printed.
     if ($value && $path && $path[0] === '#') {
-      $name = token_replace(substr($path, 1), $helper->getTokens($value));
-      $value = [
+      $name = token_replace(substr($path, 1), $alpha_pagination->getTokens($value));
+      $label = [
         '#type' => 'html_tag',
         '#theme' => 'html_tag__alpha_pagination__anchor',
         '#tag' => 'a',
         '#value' => '',
         '#attributes' => ['name' => $name],
-        '#suffix' => $value,
+        '#suffix' => $label,
       ];
     }
 
-    return $value;
+    return $label;
   }
 
   /**
    * {@inheritdoc}
    */
   public function ui_name($short = FALSE) {
-    return $this->helper->ui_name();
+    return $this->alphaPagination->ui_name();
   }
 
   /**
    * {@inheritdoc}
    */
   public function validate() {
-    return $this->helper->validate();
+    return $this->alphaPagination->validate();
   }
 
 }

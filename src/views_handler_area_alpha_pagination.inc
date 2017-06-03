@@ -8,15 +8,15 @@
 class views_handler_area_alpha_pagination extends \views_handler_area {
 
   /**
-   * @var \AlphaPaginationHelper
+   * @var \AlphaPagination
    */
-  protected $helper;
+  private $alphaPagination;
 
   /**
    * {@inheritdoc}
    */
   public function construct() {
-    $this->helper = new AlphaPaginationHelper($this);
+    $this->alphaPagination = new AlphaPagination($this);
     parent::construct();
   }
 
@@ -88,6 +88,10 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
       'default' => t('All'),
       'translatable' => TRUE,
     ];
+    $options['paginate_all_value'] = [
+      'default' => 'all',
+      'translatable' => FALSE,
+    ];
     $options['paginate_all_position'] = [
       'default' => 'after',
       'translatable' => FALSE,
@@ -127,7 +131,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
       'translatable' => FALSE,
     ];
     $options['paginate_numeric_value'] = [
-      'default' => implode('+', $this->helper->getNumbers()),
+      'default' => implode('+', $this->alphaPagination->getNumbers()),
       'translatable' => FALSE,
     ];
 
@@ -139,7 +143,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
    */
   function options_submit(&$form, &$form_state) {
     // Need to clear cache when options have changed.
-    cache_clear_all($this->helper->getCid(), 'cache', TRUE);
+    cache_clear_all($this->alphaPagination->getCid(), 'cache', TRUE);
 
     // Filter attributes for any XSS vulnerabilities before saving.
     if (!empty($form_state['values']['options']['paginate_link_attributes'])) {
@@ -187,14 +191,14 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
       '#title' => t('View field to paginate against'),
       '#type' => 'select',
       '#options' => $fields,
-      '#default_value' => $this->options['paginate_view_field'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_view_field'),
       '#description' => t('This will be the content field that drives the pagination.'),
     ];
 
     $form['paginate_toggle_empty'] = [
       '#type' => 'checkbox',
       '#title' => t('Show options without results'),
-      '#default_value' => $this->options['paginate_toggle_empty'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_toggle_empty'),
       '#description' => t('Show or hide letters without results'),
     ];
 
@@ -209,7 +213,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
       '#title' => t('Path'),
       '#type' => 'textfield',
       '#size' => 60,
-      '#default_value' => $this->options['paginate_link_path'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_link_path'),
       '#description' => t('This is the path the link will be rendered with. No beginning or ending slashes.'),
       '#fieldset' => 'paginate_link',
     ];
@@ -217,7 +221,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
     $form['paginate_link_external'] = [
       '#type' => 'checkbox',
       '#title' => t('External'),
-      '#default_value' => $this->options['paginate_link_external'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_link_external'),
       '#description' => t('Indicates whether this is an external link (not processed). If the above path starts with a hash symbol (#), then this option will automatically enable so it can render as a relative link to an anchor on the current page.'),
       '#fieldset' => 'paginate_link',
     ];
@@ -225,7 +229,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
     $form['paginate_link_class'] = [
       '#title' => t('Classes'),
       '#type' => 'textfield',
-      '#default_value' => $this->options['paginate_link_class'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_link_class'),
       '#description' => t('CSS classes for the link, separated by spaces.'),
       '#fieldset' => 'paginate_link',
     ];
@@ -234,11 +238,11 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
       '#type' => 'textfield',
       '#title' => t('Attributes'),
       '#description' => 'E.g. id|custom-id,role|navigation,data-key|value',
-      '#default_value' => $this->options['paginate_link_attributes'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_link_attributes'),
       '#fieldset' => 'paginate_link',
     ];
 
-    $form['paginate_link_tokens'] = $this->helper->buildTokenTree('paginate_link');
+    $form['paginate_link_tokens'] = $this->alphaPagination->buildTokenTree('paginate_link');
 
     // Class options.
     $form['paginate_classes'] = [
@@ -250,28 +254,28 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
     $form['paginate_class'] = [
       '#title' => t('Wrapper'),
       '#type' => 'textfield',
-      '#default_value' => $this->options['paginate_class'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_class'),
       '#description' => t('The wrapper around the item list.'),
       '#fieldset' => 'paginate_classes',
     ];
     $form['paginate_list_class'] = [
       '#title' => t('Item List'),
       '#type' => 'textfield',
-      '#default_value' => $this->options['paginate_list_class'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_list_class'),
       '#description' => t('The item list.'),
       '#fieldset' => 'paginate_classes',
     ];
     $form['paginate_active_class'] = [
       '#title' => t('Active item'),
       '#type' => 'textfield',
-      '#default_value' => $this->options['paginate_active_class'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_active_class'),
       '#description' => t('The active list item.'),
       '#fieldset' => 'paginate_classes',
     ];
     $form['paginate_inactive_class'] = [
       '#title' => t('Inactive item'),
       '#type' => 'textfield',
-      '#default_value' => $this->options['paginate_inactive_class'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_inactive_class'),
       '#description' => t('The inactive list item(s) that are not links, a.k.a. "no results".'),
       '#fieldset' => 'paginate_classes',
     ];
@@ -289,7 +293,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
         0 => t('No'),
         1 => t('Yes'),
       ],
-      '#default_value' => $this->options['paginate_all_display'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_all_display'),
       '#description' => t('Displays the "All" link in the pagination.'),
       '#fieldset' => 'paginate_all_options',
     ];
@@ -300,7 +304,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
         'before' => t('Before'),
         'after' => t('After'),
       ],
-      '#default_value' => $this->options['paginate_all_position'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_all_position'),
       '#description' => t('Determines where the "All" item will show up in the pagination.'),
       '#dependency' => ['edit-options-paginate-all-display' => [1]],
       '#fieldset' => 'paginate_all_options',
@@ -308,15 +312,23 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
     $form['paginate_all_label'] = [
       '#type' => 'textfield',
       '#title' => t('Label'),
-      '#default_value' => $this->options['paginate_all_label'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_all_label'),
       '#description' => t('The label to use for display the "All" item in the pagination.'),
+      '#dependency' => ['edit-options-paginate-all-display' => [1]],
+      '#fieldset' => 'paginate_all_options',
+    ];
+    $form['paginate_all_value'] = [
+      '#type' => 'textfield',
+      '#title' => t('Value'),
+      '#default_value' => $this->alphaPagination->getOption('paginate_all_value'),
+      '#description' => t('The value to use to represent all items.'),
       '#dependency' => ['edit-options-paginate-all-display' => [1]],
       '#fieldset' => 'paginate_all_options',
     ];
     $form['paginate_all_class'] = [
       '#title' => t('Classes'),
       '#type' => 'textfield',
-      '#default_value' => $this->options['paginate_all_class'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_all_class'),
       '#description' => t('CSS classes for "All" item (on <code>&lt;li&gt;</code> element); separated by spaces.'),
       '#dependency' => ['edit-options-paginate-all-display' => [1]],
       '#fieldset' => 'paginate_all_options',
@@ -337,7 +349,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
         1 => t('Individual numbers (0-9)'),
         2 => t('Single label (#)'),
       ],
-      '#default_value' => $this->options['paginate_view_numbers'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_view_numbers'),
       '#description' => t('Displays numeric item(s) in the pagination.'),
       '#fieldset' => 'paginate_numeric_options',
     ];
@@ -346,7 +358,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
     $form['paginate_numeric_class'] = [
       '#title' => t('Classes'),
       '#type' => 'textfield',
-      '#default_value' => $this->options['paginate_numeric_class'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_numeric_class'),
       '#description' => t('CSS classes for numeric item (on <code>&lt;li&gt;</code> element); separated by spaces.'),
       '#fieldset' => 'paginate_numeric_options',
       '#dependency' => [
@@ -361,7 +373,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
         'before' => t('Before'),
         'after' => t('After'),
       ],
-      '#default_value' => $this->options['paginate_numeric_position'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_numeric_position'),
       '#description' => t('Determines whether numeric items are shown before or after alphabetical links in the pagination.'),
       '#fieldset' => 'paginate_numeric_options',
       '#dependency' => [
@@ -373,7 +385,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
       '#title' => t('Hide all numeric item(s) if empty'),
       '#description' => t('Will not render any numeric item(s) if there are no results that start with numeric values.'),
       '#type' => 'checkbox',
-      '#default_value' => $this->options['paginate_numeric_hide_empty'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_numeric_hide_empty'),
       '#fieldset' => 'paginate_numeric_options',
       '#dependency' => [
         'edit-options-paginate-view-numbers' => [1, 2],
@@ -384,7 +396,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
     $form['paginate_numeric_divider'] = [
       '#type' => 'checkbox',
       '#title' => t('Show divider'),
-      '#default_value' => $this->options['paginate_numeric_divider'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_numeric_divider'),
       '#description' => t('Will render a specific divider item before or after the numeric items have been render, based on position.'),
       '#fieldset' => 'paginate_numeric_options',
       '#dependency' => [
@@ -395,7 +407,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
     $form['paginate_numeric_divider_class'] = [
       '#title' => t('Divider class'),
       '#type' => 'textfield',
-      '#default_value' => $this->options['paginate_numeric_divider_class'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_numeric_divider_class'),
       '#description' => t('The class to use for the numeric divider list item.'),
       '#fieldset' => 'paginate_numeric_options',
       '#dependency' => [
@@ -409,7 +421,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
     $form['paginate_numeric_label'] = [
       '#title' => t('Label'),
       '#type' => 'textfield',
-      '#default_value' => $this->options['paginate_numeric_label'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_numeric_label'),
       '#description' => t('The label to use to represent all numeric values.'),
       '#fieldset' => 'paginate_numeric_options',
       '#dependency' => ['edit-options-paginate-view-numbers' => [2]],
@@ -418,7 +430,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
     $form['paginate_numeric_value'] = [
       '#title' => t('Value'),
       '#type' => 'textfield',
-      '#default_value' => $this->options['paginate_numeric_value'],
+      '#default_value' => $this->alphaPagination->getOption('paginate_numeric_value'),
       '#description' => t('The value to use to represent all numeric values (i.e. URL value).'),
       '#fieldset' => 'paginate_numeric_options',
       '#dependency' => ['edit-options-paginate-view-numbers' => [2]],
@@ -430,7 +442,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
    * {@inheritdoc}
    */
   function post_execute(&$values) {
-    $this->helper->ensureQuery();
+    $this->alphaPagination->ensureQuery();
   }
 
   /**
@@ -454,119 +466,44 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
         ],
       ],
     ];
-    $this->helper->addClasses($this->helper->getOption('paginate_class'), $wrapper['#attributes']);
 
-    $values = $this->helper->getItems();
-
-    // Default to "all" unless a valid argument was provided.
-    $current = 'all';
-
-    // Attempt to determine if a valid argument was provided.
-    $arg_count = count($this->view->args);
-    if ($arg_count) {
-      $arg = (string) $this->view->args[$arg_count - 1];
-      if ($arg && array_key_exists($arg, $values)) {
-        $current = $arg;
-      }
-    }
-
-    $all_label = !empty($this->options['paginate_all_label']) ? t(check_plain($this->options['paginate_all_label'])) : t('All');
+    $this->alphaPagination->addClasses($this->alphaPagination->getOption('paginate_class'), $wrapper['#attributes']);
 
     // Iterate over the alphabet and populate the items for the item list.
     $items = [];
-    foreach ($values as $value => $is_link) {
-      // All.
-      $all = drupal_strtolower($value) === 'all';
-
-      // Numeric.
-      $numeric_label = $this->options['paginate_numeric_label'];
-      $numeric_value = $this->options['paginate_numeric_value'];
-      $single_numeric_label = $this->options['paginate_view_numbers'] == 2;
-      $numeric = is_numeric($value) || ($single_numeric_label && $value === $numeric_label);
-      $numeric_divider = FALSE;
-      if ($value === '-') {
-        if (!$single_numeric_label && $this->options['paginate_numeric_divider']) {
-          $numeric_divider = TRUE;
-          $value = '';
-        }
-        else {
-          continue;
-        }
-      }
-
-      // Active.
-      if ($numeric && $single_numeric_label) {
-        $active = (string) $numeric_value === $current;
-      }
-      else {
-        $active = (string) $value === $current;
-      }
-
-      // Link.
-      $is_link = !$active && ($all || $is_link);
-
-      // Label.
-      $label = $all ? $all_label : drupal_ucfirst($value);
-
-      // Ensure a single numeric label alters the URL value.
-      if ($single_numeric_label && $value === $this->options['paginate_numeric_label']) {
-        $value = $this->options['paginate_numeric_value'];
-      }
-
-      // Theme link item.
-      if ($is_link) {
-        $item_data = $this->helper->buildLink($label, $value);
-      }
-      // Theme non-link item (a.k.a "inactive").
-      //
-      // Some themes require text that's in a "pagination" list to be wrapped
-      // in another element. Typically, this would be a link, like above,
-      // however since this is an inactive option, it should be wrapped in a
-      // themeable element that can be targeted by preprocessors if needed.
-      elseif ($this->options['paginate_toggle_empty'] || $all || $active) {
-        $item_data = [
-          '#type' => 'html_tag',
-          '#theme' => 'html_tag__alpha_pagination__inactive',
-          '#tag' => 'span',
-          '#value' => $label,
-        ];
-      }
-
-      // Add special numeric divider class.
-      if ($numeric_divider) {
+    foreach ($this->alphaPagination->getCharacters() as $character) {
+      // Add special numeric divider.
+      if ($character->getValue() === '-' && $this->alphaPagination->getOption('paginate_view_numbers') !== '2' && $this->alphaPagination->getOption('paginate_numeric_divider')) {
         // Add an empty list item.
         $item = ['data' => ''];
+        $this->alphaPagination->addClasses($this->alphaPagination->getOption('paginate_numeric_divider_class'), $item);
+        $items[] = $item;
+      }
+      // Unfortunately, the implementation of item_list in D7 core does not
+      // allow render arrays to be passed as data and requires premature
+      // rendering here by passing TRUE.
+      // @todo In D8, pass the render array directly since it can process it.
+      elseif ($build = $character->build(TRUE)) {
+        $item = ['data' => $build];
 
-        $this->helper->addClasses($this->helper->getOption('paginate_numeric_divider_class'), $item);
+        // Add the necessary classes for item.
+        if ($character->isAll()) {
+          $this->alphaPagination->addClasses($this->alphaPagination->getOption('paginate_all_class'), $item);
+        }
+
+        if ($character->isNumeric()) {
+          $this->alphaPagination->addClasses($this->alphaPagination->getOption('paginate_numeric_class'), $item);
+        }
+
+        if ($character->isActive()) {
+          $this->alphaPagination->addClasses($this->alphaPagination->getOption('paginate_active_class'), $item);
+        }
+        elseif (!$character->isEnabled()) {
+          $this->alphaPagination->addClasses($this->alphaPagination->getOption('paginate_inactive_class'), $item);
+        }
 
         // Add the constructed item to the list.
         $items[] = $item;
-      }
-      else {
-        if (!empty($item_data)) {
-          // Unfortunately, the implementation of item_list in D7 core does not
-          // allow render arrays to be passed as data and requires premature
-          // rendering here.
-          // @todo In D8, pass the render array directly since it can process it.
-          $item = ['data' => drupal_render($item_data)];
-
-          // Add the necessary classes for item.
-          if ($all) {
-            $this->helper->addClasses($this->helper->getOption('paginate_all_class'), $item);
-          }
-          if ($numeric) {
-            $this->helper->addClasses($this->helper->getOption('paginate_numeric_class'), $item);
-          }
-          if ($active) {
-            $this->helper->addClasses($this->helper->getOption('paginate_active_class'), $item);
-          }
-          elseif (!$is_link) {
-            $this->helper->addClasses($this->helper->getOption('paginate_inactive_class'), $item);
-          }
-
-          // Add the constructed item to the list.
-          $items[] = $item;
-        }
       }
     }
 
@@ -576,7 +513,7 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
       '#attributes' => [],
       '#items' => $items,
     ];
-    $this->helper->addClasses($this->helper->getOption('paginate_list_class'), $item_list['#attributes']);
+    $this->alphaPagination->addClasses($this->alphaPagination->getOption('paginate_list_class'), $item_list['#attributes']);
 
     // Append the item list to the wrapper.
     $wrapper[] = $item_list;
@@ -588,14 +525,14 @@ class views_handler_area_alpha_pagination extends \views_handler_area {
    * {@inheritdoc}
    */
   public function ui_name($short = FALSE) {
-    return $this->helper->ui_name();
+    return $this->alphaPagination->ui_name();
   }
 
   /**
    * {@inheritdoc}
    */
   function validate() {
-    return $this->helper->validate();
+    return $this->alphaPagination->validate();
   }
 
 }

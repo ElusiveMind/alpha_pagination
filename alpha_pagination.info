@@ -7,6 +7,7 @@ php = 5.4
 dependencies[] = entity
 dependencies[] = views
 
-files[] = views/AlphaPaginationHelper.inc
-files[] = views/views_handler_area_alpha_pagination.inc
-files[] = views/views_handler_field_alpha_pagination_group.inc
+files[] = src/AlphaPagination.php
+files[] = src/AlphaPaginationCharacter.php
+files[] = src/views_handler_area_alpha_pagination.inc
+files[] = src/views_handler_field_alpha_pagination_group.inc
