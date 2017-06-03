@@ -71,7 +71,7 @@ class AlphaPaginationHelper {
     ], $options);
 
     // Merge in classes.
-    $this->addClasses('paginate_link_class', $options['attributes']);
+    $this->addClasses($this->getOption('paginate_link_class'), $options['attributes']);
 
     $path = token_replace($this->getOption('paginate_link_path'), $this->getTokens($value));
 
@@ -159,7 +159,7 @@ class AlphaPaginationHelper {
    * @todo Need to make this better somehow?
    */
   public function ensureQuery() {
-    if ($this->getOption('query') && !empty($this->handler->view->build_info['query'])) {
+    if (!$this->getOption('query') && !empty($this->handler->view->build_info['query'])) {
       /** @var \SelectQuery $query */
       $query = $this->handler->view->build_info['query'];
       $quoted = $query->getArguments();
