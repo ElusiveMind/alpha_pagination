@@ -761,17 +761,24 @@ class AlphaPagination {
    * {@inheritdoc}
    */
   public function validate() {
-    static $validated = [];
+    $name = $this->handler->view->name;
+    $display_id = $this->handler->view->current_display;
 
-    $errors = [];
-    if (!isset($validated[$this->handler->view->name . ':' . $this->handler->view->current_display])) {
-      $validated[$this->handler->view->name . ':' . $this->handler->view->current_display] = TRUE;
+    // Immediately return if display doesn't have the handler in question.
+    $items = $this->handler->view->get_items($this->handler->handler_type, $display_id);
+    $field = $this->handler->real_field ?: $this->handler->field;
+    if (!isset($items[$field])) {
+      return [];
+    }
 
-      $areas = $this->getAreaHandlers();
+    static $errors = [];
+    if (!isset($errors["$name:$display_id"])) {
+      $errors["$name:$display_id"] = [];
 
       // Show an error if not found.
+      $areas = $this->getAreaHandlers();
       if (!$areas) {
-        $errors[] = t('The view "@name:@display" must have at least one configured alpha pagination area in either the header or footer to use "@field".', [
+        $errors["$name:$display_id"][] = t('The view "@name:@display" must have at least one configured alpha pagination area in either the header or footer to use "@field".', [
           '@field' => $this->handler->real_field,
           '@name' => $this->handler->view->name,
           '@display' => $this->handler->view->current_display,
@@ -779,7 +786,7 @@ class AlphaPagination {
       }
       // Show an error if there is more than one instance.
       elseif (count($areas) > 1) {
-        $errors[] = t('The view "@name:@display" can only have one configured alpha pagination area in either the header or footer.', [
+        $errors["$name:$display_id"][] = t('The view "@name:@display" can only have one configured alpha pagination area in either the header or footer.', [
           '@name' => $this->handler->view->name,
           '@display' => $this->handler->view->current_display,
         ]);
@@ -787,7 +794,7 @@ class AlphaPagination {
 
     }
 
-    return $errors;
+    return $errors["$name:$display_id"];
   }
 
 }
