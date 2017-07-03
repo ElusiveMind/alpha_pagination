@@ -34,7 +34,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
       'translatable' => FALSE,
     );
     $options['paginate_view_field'] = array(
-      'default' => 'title',
+      'default' => '',
       'translatable' => TRUE,
     );
 
@@ -303,22 +303,24 @@ class alpha_pagination_handler_pagination extends views_handler_area {
    * I am open to suggestions on how to make this better.
    */
   function ensureQuery() {
-    if (empty($this->options['query']) && !empty($this->view->build_info['query'])) {
+    if (empty($this->options['query'])) {
       $query = $this->view->build_info['query'];
-      $quoted = $query->getArguments();
-      $connection = Database::getConnection();
-      foreach ($quoted as $key => $val) {
-        if (is_array($val)) {
-          $quoted[$key] = implode(', ', array_map(array(
-            $connection,
-            'quote'
-          ), $val));
+      if (!empty($query)) {
+        $quoted = $query->getArguments();
+        $connection = Database::getConnection();
+        foreach ($quoted as $key => $val) {
+          if (is_array($val)) {
+            $quoted[$key] = implode(', ', array_map(array(
+              $connection,
+              'quote'
+            ), $val));
+          }
+          else {
+            $quoted[$key] = $connection->quote($val);
+          }
         }
-        else {
-          $quoted[$key] = $connection->quote($val);
-        }
+        $this->options['query'] = check_plain(strtr($query, $quoted));
       }
-      $this->options['query'] = check_plain(strtr($query, $quoted));
     }
   }
 
@@ -583,6 +585,22 @@ class alpha_pagination_handler_pagination extends views_handler_area {
           break;
 
         default:
+          // If, somehow, the paginate_view_field value is not present, then we need to make sure
+          // we have a default in place as a fallback position. This will default to name for
+          // taxonomies and titles for everything else.
+          if (empty($this->options['paginate_view_field'])) {
+            $table = $this->view->base_table;
+            $where = $this->view->base_field;
+            if ($this->view->base_table == 'taxonomy_term_data') {
+              // Get an array list of all non-image, non-entity or other assorted reference fields.
+              $field = 'name';
+            }
+            else {
+              $field = 'title';
+            }
+            break;
+          }
+
           if (strpos($this->options['paginate_view_field'], ':') === FALSE) {
             // Format field name and table for single value fields
             $field = $this->options['paginate_view_field'] . '_value';
@@ -596,6 +614,7 @@ class alpha_pagination_handler_pagination extends views_handler_area {
           $where = 'entity_id';
           break;
       }
+
       $result = db_query('SELECT DISTINCT(SUBSTR(' . $field . ', 1, 1)) AS prefix
                           FROM {' . $table . '}
                           WHERE ' . $where . ' IN ( :nids )', array(':nids' => $entity_ids));
