@@ -1,0 +1,5 @@
+alpha_pagination:
+  version: VERSION
+  css:
+    component:
+      css/alpha_pagination.css: {}

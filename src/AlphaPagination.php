@@ -1,19 +1,116 @@
 <?php
 
+namespace Drupal\alpha_pagination;
+
+use Drupal\views\Views;
+use Drupal\views\Plugin\views\ViewsHandlerInterface;
+use Drupal\Core\Database\Connection;
+use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
+use Drupal\Core\Language\LanguageManagerInterface;
+use Drupal\Core\Language\LanguageInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Component\Utility\Html;
+use Drupal\Component\Utility\Unicode;
+use Drupal\Core\Utility\Token;
+use Drupal\Component\Transliteration\TransliterationInterface;
+use Drupal\Component\Utility\Crypt;
+use Drupal\alpha_pagination\AlphaPaginationCharacter;
+//use Symfony\Component\DependencyInjection;
+
 /**
  * A base views handler for alpha pagination.
  */
 class AlphaPagination {
 
   /**
-   * @var \views_handler
+   * @var \Drupal\views\Plugin\views\ViewsHandlerInterface
    */
   protected $handler;
 
   /**
-   * @param \views_handler $handler
+   * The Entity Field Manager Interface.
+   *
+   * @var \Drupal\Core\Entity\EntityFieldManagerInterface
    */
-  public function __construct(views_handler $handler) {
+  protected $field_manager;
+
+  /**
+   * The Language Interface.
+   *
+   * @var \Drupal\Core\Language\LanguageInterface
+   */
+  protected $language;
+
+  /**
+   * The ModuleHandler Interface.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
+  protected $module_handler;
+
+  /**
+   * The cache backend service.
+   *
+   * @var \Drupal\Core\Cache\CacheBackendInterface
+   */
+  protected $cache_backend;
+
+  /**
+   * The Transliteration Interface.
+   *
+   * @var \Drupal\Component\Transliteration\TransliterationInterface
+   */
+  protected $transliteration;
+
+  /**
+   * The database connection.
+   *
+   * @var \Drupal\Core\Database\Connection
+   */
+  protected $database;
+
+  /**
+   * The token replacement instance.
+   *
+   * @var \Drupal\Core\Utility\Token
+   */
+  protected $token;
+
+  /**
+   * The url used for links.
+   */
+  protected $url;
+
+  /**
+   * @param \Drupal\views\Plugin\views\ViewsHandlerInterface $handler
+   *   The View handler interface.
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface
+   *   The Entity Field Manager Interface.
+   * @param \Drupal\Core\Language\LanguageManagerInterface $language_manager
+   *   The language manager service.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
+   *   The ModuleHander Intervace
+   * @param \Drupal\Core\Cache\CacheBackendInterface $cache_backend
+   *   The cache backend service.
+   * @param \Drupal\Component\Transliteration\PhpTransliteration $transliteration
+   *   A PHPTransliteration object.
+   * @param \Drupal\Core\Database\Connection $database
+   *   The database connection.
+   * @param \Drupal\Core\Utility\Token $token
+   *   The token service.
+   */
+  public function __construct(EntityFieldManagerInterface $field_manager, LanguageManagerInterface $language_manager, ModuleHandlerInterface $module_handler, CacheBackendInterface $cache_backend, TransliterationInterface $transliteration, Connection $database, Token $token) {
+    $this->field_manager = $field_manager;
+    $this->language = $language_manager->getCurrentLanguage()->getId();
+    $this->module_handler = $module_handler;
+    $this->cache_backend = $cache_backend;
+    $this->transliteration = $transliteration;
+    $this->database = $database;
+    $this->token = $token;
+  }
+
+  public function setHandler($handler){
     $this->handler = $handler;
   }
 
@@ -21,7 +118,8 @@ class AlphaPagination {
    * {@inheritdoc}
    */
   public function __sleep() {
-    $this->_handler = implode(':', [$this->handler->view->name, $this->handler->view->current_display, $this->handler->handler_type, $this->handler->real_field ?: $this->handler->field]);
+    $this->_handler = implode(':', [$this->handler->view->id(), $this->handler->view->current_display, $this->handler->areaType, $this->handler->realField ?: $this->handler->field, $this->language]);
+
     return ['_handler'];
   }
 
@@ -29,10 +127,12 @@ class AlphaPagination {
    * {@inheritdoc}
    */
   public function __wakeup() {
-    list($name, $display_id, $type, $id) = explode(':', $this->_handler);
-    $view = views_get_view($name);
-    $view->set_display($display_id);
-    $this->handler = $view->display_handler->get_handler($type, $id);
+    list($name, $display_id, $type, $id, $language) = explode(':', $this->_handler);
+    $view =  Views::getView($name);
+    $view->setDisplay($display_id);
+    $this->handler = $view->display_handler->getHandler($type, $id);
+
+    $this->language = $language;
     unset($this->_handler);
   }
 
@@ -53,7 +153,7 @@ class AlphaPagination {
     // Sanitize any classes provided for the item list.
     foreach ((array) $classes as $v) {
       foreach (array_filter(explode(' ', $v)) as $vv) {
-        $processed[] = views_clean_css_identifier($vv);
+        $processed[] = Html::cleanCssIdentifier($vv);
       }
     }
 
@@ -81,7 +181,7 @@ class AlphaPagination {
     static $build;
 
     if (!isset($build)) {
-      if (module_exists('token')) {
+      if ($this->module_handler->moduleExists('token')) {
         $build = [
           '#type' => 'container',
           '#title' => t('Browse available tokens'),
@@ -132,19 +232,18 @@ class AlphaPagination {
       /** @var \SelectQuery $query */
       $query = $this->handler->view->build_info['query'];
       $quoted = $query->getArguments();
-      $connection = Database::getConnection();
       foreach ($quoted as $key => $val) {
         if (is_array($val)) {
           $quoted[$key] = implode(', ', array_map([
-            $connection,
+            $this->database,
             'quote',
           ], $val));
         }
         else {
-          $quoted[$key] = $connection->quote($val);
+          $quoted[$key] = $this->database->quote($val);
         }
       }
-      $this->handler->options['query'] = check_plain(strtr($query, $quoted));
+      $this->handler->options['query'] = Html::escape(strtr($query, $quoted));
     }
   }
 
@@ -165,7 +264,6 @@ class AlphaPagination {
    * @see hook_alpha_pagination_alphabet_alter()
    */
   public function getAlphabet($langcode = NULL) {
-    global $language;
 
     // Default (English).
     static $default = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
@@ -173,14 +271,14 @@ class AlphaPagination {
 
     // If the langcode is not explicitly specified, default to global langcode.
     if (!isset($langcode)) {
-      $langcode = $language->language;
+      $langcode = $this->language;
     }
 
     // Retrieve alphabets.
     if (!isset($alphabets)) {
       // Attempt to retrieve from database cache.
       $cid = "alpha_pagination:alphabets";
-      if (($cache = cache_get($cid)) && !empty($cache->data)) {
+      if (($cache = $this->cache_backend->get($cid)) && !empty($cache->data)) {
         $alphabets = $cache->data;
       }
       // Build alphabets.
@@ -195,10 +293,10 @@ class AlphaPagination {
         $alphabets['ru'] = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И', 'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ы', 'Э', 'Ю', 'Я'];
 
         // Allow modules and themes to alter alphabets.
-        drupal_alter('alpha_pagination_alphabet', $alphabets, $this);
+        $this->module_handler->alter('alpha_pagination_alphabet', $alphabets, $this);
 
         // Cache the alphabets.
-        cache_set($cid, $alphabets);
+        $this->cache_backend->set($cid, $alphabets);
       }
     }
 
@@ -218,8 +316,8 @@ class AlphaPagination {
   public function getAreaHandlers(array $types = ['header', 'footer']) {
     $areas = [];
     foreach ($types as $type) {
-      foreach ($this->handler->view->display_handler->get_handlers($type) as $handler) {
-        if ($handler instanceof \views_handler_area_alpha_pagination) {
+      foreach ($this->handler->displayHandler->getHandlers($type) as $handler) {
+        if ($handler instanceof \Drupal\alpha_pagination\Plugin\views\area\AlphaPaginationArea) {
           $areas[] = $handler;
         }
       }
@@ -250,7 +348,7 @@ class AlphaPagination {
       // results set from it so that things can move quickly through here. We're
       // caching in the event the view has a very large result set.
       $cid = $this->getCid();
-      if (($cache = cache_get($cid)) && !empty($cache->data)) {
+      if (($cache = $this->cache_backend->get($cid)) && !empty($cache->data)) {
         $characters = $cache->data;
       }
       else {
@@ -265,7 +363,7 @@ class AlphaPagination {
 
           // Determine type of numeric items.
           if ($numeric_type === '2') {
-            $numeric[$numeric_value] = check_plain($numeric_label);
+            $numeric[$numeric_value] = Html::escape($numeric_label);
           }
           else {
             foreach ($this->getNumbers() as $value) {
@@ -332,7 +430,7 @@ class AlphaPagination {
         }
 
         // Cache the results.
-        cache_set($cid, $characters, 'cache');
+        $this->cache_backend->set($cid, $characters);
       }
 
       // Default current value to "all", if enabled, or the first character.
@@ -368,16 +466,15 @@ class AlphaPagination {
    *   A cache identifier.
    */
   public function getCid() {
-    global $language;
     $this->ensureQuery();
     $data = [
-      'langcode' => $language->language,
-      'view' => $this->handler->view->name,
-      'display' => $this->handler->view->current_display,
+      'langcode' => $this->language,
+      'view' => $this->handler->view->id(),
+      'display' => $this->handler->view->getDisplay()->getPluginId(),
       'query' => $this->getOption('query') ? md5($this->getOption('query')) : '',
       'options' => $this->handler->options,
     ];
-    return 'alpha_pagination:' .  drupal_hash_base64(serialize($data));
+    return 'alpha_pagination:' . Crypt::hashBase64(serialize($data));
   }
 
   /**
@@ -395,9 +492,20 @@ class AlphaPagination {
     $query_parts = explode("\n", $this->getOption('query'));
 
     // Get the base field. This will change depending on the type of view we
-    // are putting the paginator on.
-    $base_field = $this->handler->view->base_field;
-
+    // are putting the paginator on and eventually if we are using a relationship
+    // to access it.
+    $relationship = $this->getOption('paginate_view_relationship');
+    if ($relationship == 'none') {
+      $base_field = $this->handler->view->storage->get('base_field');
+    } else {
+      // inspired from core/modules/views_ui/src/Form/Ajax/ConfigHandler.php buildForm
+      // further exploration needed when chaining relationships
+      $relationship_handler = $this->handler->view->getHandler($this->handler->view->current_display, 'relationship', $relationship);
+      $data = Views::viewsData()->get($relationship_handler['table']);
+      if (isset($data[$relationship_handler['field']]['relationship']['base']) && $this->handler->view->storage->get('base_table') == $data[$relationship_handler['field']]['relationship']['base']) {
+        $base_field = implode('_', [$data[$relationship_handler['field']]['relationship']['base'], $relationship_handler['table'], $data[$relationship_handler['field']]['relationship']['base field']]);
+      }
+    }
     // If we are dealing with a substring, then short circuit it as we are most
     // likely dealing with a glossary contextual filter.
     foreach ($query_parts as $k => $part) {
@@ -426,7 +534,7 @@ class AlphaPagination {
     // Based on our query, get the list of entity identifiers that are affected.
     // These will be used to generate the pagination items.
     $entity_ids = [];
-    $result = db_query($query);
+    $result = $this->database->query($query);
     while ($data = $result->fetchObject()) {
       $entity_ids[] = $data->$base_field;
     }
@@ -452,45 +560,47 @@ class AlphaPagination {
     if ($entity_ids = $this->getEntityIds()) {
       switch ($this->getOption('paginate_view_field')) {
         case 'name':
-          $table = $this->handler->view->base_table;
-          $where = $this->handler->view->base_field;
+          $table = $this->handler->view->storage->get('base_table');
+          $where = $this->handler->view->storage->get('base_field');
 
           // Extract the "name" field from the entity property info.
-          $table_data = views_fetch_data($table);
-          $entity_info = entity_get_property_info($table_data['table']['entity type']);
+          $entity_type = $this->handler->view->getBaseEntityType->id();
+          $entity_info = $this->field_manager->getBaseFieldDefinitions($entity_type);
           $field = isset($entity_info['properties']['name']['schema field']) ? $entity_info['properties']['name']['schema field'] : 'name';
           break;
 
         case 'title':
-          $table = $this->handler->view->base_table;
-          $where = $this->handler->view->base_field;
+          $table = $this->handler->view->storage->get('base_table');
+          $where = $this->handler->view->storage->get('base_field');
 
           // Extract the "title" field from the entity property info.
-          $table_data = views_fetch_data($table);
-          $entity_info = entity_get_property_info($table_data['table']['entity type']);
+          $entity_type = $this->handler->view->getBaseEntityType()->id();
+          $entity_info = $this->field_manager->getBaseFieldDefinitions($entity_type);
           $field = isset($entity_info['properties']['title']['schema field']) ? $entity_info['properties']['title']['schema field'] : 'title';
           break;
 
         default:
           if (strpos($this->getOption('paginate_view_field'), ':') === FALSE) {
             // Format field name and table for single value fields
-            $field = $this->getOption('paginate_view_field') . '_value';
-            $table = 'field_data_' . $this->getOption('paginate_view_field');
+            list($entityType, $field_name) = explode('__', $this->getOption('paginate_view_field'), 2);
+            $field = $field_name . '_value';
+            $table = $this->getOption('paginate_view_field');
           }
           else {
             // Format field name and table for compound value fields
-            $field = str_replace(':', '_', $this->getOption('paginate_view_field'));
-            $field_name_components = explode(':', $this->getOption('paginate_view_field'));
-            $table = 'field_data_' . $field_name_components[0];
+            list($entityType, $field_name) = explode('__', $this->getOption('paginate_view_field'), 2);
+            $field = str_replace(':', '_', $field_name);
+            $field_name_components = explode(':', $field_name);
+            $table = $field_name_components[0];
           }
           $where = 'entity_id';
           break;
       }
-      $result = db_query('SELECT DISTINCT(SUBSTR(' . $field . ', 1, 1)) AS prefix
+      $result = $this->database->query('SELECT DISTINCT(SUBSTR(' . $field . ', 1, 1)) AS prefix
                           FROM {' . $table . '}
-                          WHERE ' . $where . ' IN ( :nids )', [':nids' => $entity_ids]);
+                          WHERE ' . $where . ' IN ( :nids[] )', [':nids[]' => $entity_ids]);
       while ($data = $result->fetchObject()) {
-        $prefixes[] = is_numeric($data->prefix) ? $data->prefix : drupal_strtoupper($data->prefix);
+        $prefixes[] = is_numeric($data->prefix) ? $data->prefix : Unicode::strtoupper($this->transliteration->transliterate($data->prefix));
       }
     }
     return array_unique(array_filter($prefixes));
@@ -537,22 +647,20 @@ class AlphaPagination {
    * @see hook_alpha_pagination_numbers_alter()
    */
   public function getNumbers($langcode = NULL) {
-    global $language;
-
     // Default (English).
     static $default = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
     static $numbers;
 
     // If the langcode is not explicitly specified, default to global langcode.
     if (!isset($langcode)) {
-      $langcode = $language->language;
+      $langcode = $this->language;
     }
 
     // Retrieve numbers.
     if (!isset($numbers)) {
       // Attempt to retrieve from database cache.
       $cid = "alpha_pagination:numbers";
-      if (($cache = cache_get($cid)) && !empty($cache->data)) {
+      if (($cache = $this->cache_backend->get($cid)) && !empty($cache->data)) {
         $numbers = $cache->data;
       }
       // Build numbers.
@@ -561,10 +669,10 @@ class AlphaPagination {
         $numbers['en'] = $default;
 
         // Allow modules and themes to alter numbers.
-        drupal_alter('alpha_pagination_numbers', $numbers, $this);
+        $this->module_handler->alter('alpha_pagination_numbers', $numbers, $this);
 
         // Cache the numbers.
-        cache_set($cid, $numbers);
+        $this->cache_backend->set($cid, $numbers);
       }
     }
 
@@ -619,16 +727,14 @@ class AlphaPagination {
    *   The URL for the view or current_path().
    */
   public function getUrl() {
-    static $url;
-
-    if (!isset($url)) {
+    if (empty($this->url)) {
       if (!empty($this->handler->view->override_url)) {
-        return $this->handler->view->override_url;
+        $this->url = $this->handler->view->override_url;
+        return $this->url;
       }
 
-      $path = $this->handler->view->get_path();
+      $path = $this->handler->view->getPath();
       $args = $this->handler->view->args;
-
       // Exclude arguments that were computed, not passed on the URL.
       $position = 0;
       if (!empty($this->handler->view->argument)) {
@@ -642,13 +748,15 @@ class AlphaPagination {
 
       // Don't bother working if there's nothing to do:
       if (empty($path) || (empty($args) && strpos($path, '%') === FALSE)) {
-        $path = current_path();
+        $path = \Drupal::service('path.current')->getPath();
         $pieces = explode('/', $path);
+        // if getPath returns heading slash, remove it as it will ba added later
+        if ($pieces[0] == '') array_shift($pieces);
         if (array_key_exists(end($pieces), $this->getCharacters())) {
           array_pop($pieces);
         }
-        $url = implode('/', $pieces);
-        return $url;
+        $this->url = implode('/', $pieces);
+        return $this->url;
       }
 
       $pieces = [];
@@ -680,9 +788,9 @@ class AlphaPagination {
       }
 
       // Just return the computed pieces, don't merge any extra remaining args.
-      $url = implode('/', $pieces);
+      $this->url = implode('/', $pieces);
     }
-    return $url;
+    return $this->url;
   }
 
   /**
@@ -739,7 +847,7 @@ class AlphaPagination {
       $parts = explode(',', $string);
       foreach ($parts as $attribute) {
         if (strpos($attribute, '|') !== FALSE) {
-          list($key, $value) = explode('|', token_replace($attribute, $tokens, ['clear' => TRUE]));
+          list($key, $value) = explode('|', $this->token->replace($attribute, $tokens, ['clear' => TRUE]));
           $attributes[$key] = $value;
         }
       }
@@ -750,23 +858,13 @@ class AlphaPagination {
   /**
    * {@inheritdoc}
    */
-  public function ui_name() {
-    if ($ui_name = $this->getOption('ui_name')) {
-      return check_plain($ui_name);
-    }
-    return t('Alpha Pagination');
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function validate() {
-    $name = $this->handler->view->name;
+    $name = $this->handler->view->id();
     $display_id = $this->handler->view->current_display;
 
     // Immediately return if display doesn't have the handler in question.
-    $items = $this->handler->view->get_items($this->handler->handler_type, $display_id);
-    $field = $this->handler->real_field ?: $this->handler->field;
+    $items = $this->handler->view->getHandlers($this->handler->areaType, $display_id);
+    $field = $this->handler->realField ?: $this->handler->field;
     if (!isset($items[$field])) {
       return [];
     }
@@ -779,15 +877,15 @@ class AlphaPagination {
       $areas = $this->getAreaHandlers();
       if (!$areas) {
         $errors["$name:$display_id"][] = t('The view "@name:@display" must have at least one configured alpha pagination area in either the header or footer to use "@field".', [
-          '@field' => $this->handler->real_field,
-          '@name' => $this->handler->view->name,
+          '@field' => $field,
+          '@name' => $this->handler->view->id(),
           '@display' => $this->handler->view->current_display,
         ]);
       }
       // Show an error if there is more than one instance.
       elseif (count($areas) > 1) {
         $errors["$name:$display_id"][] = t('The view "@name:@display" can only have one configured alpha pagination area in either the header or footer.', [
-          '@name' => $this->handler->view->name,
+          '@name' => $this->handler->view->id(),
           '@display' => $this->handler->view->current_display,
         ]);
       }

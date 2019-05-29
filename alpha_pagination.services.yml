@@ -1,0 +1,4 @@
+services:
+  alpha_pagination:
+    class: Drupal\alpha_pagination\AlphaPagination
+    arguments: ['@entity_field.manager', '@language_manager', '@module_handler', '@cache.default', '@transliteration', '@database', '@token']

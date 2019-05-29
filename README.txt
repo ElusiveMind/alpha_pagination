@@ -8,20 +8,13 @@ Alpha Pagination for Views was designed and written by Michael Bagnall: https://
 This module exists thanks to the support of Highwire Press, Inc and the Institute for the Arts and Humanities and UNC and was created as part of the Symposiac Conference Platform.
 
 
-Dependencies
-------------
- * views
-
- 
 Install
 -------
 Install the Alpha Pagination module.
 
 1) Copy the alpha_pagination folder to the modules folder in your installation.
 
-2) Download and enable dependencies (views and views_ui).
-
-3) Enable the Alpha Pagination for Views module using Administer -> Modules (/admin/build/modules).
+2) Enable the Alpha Pagination for Views module using Administer -> Modules (/admin/build/modules).
 
 
 Views Integration and Configuration

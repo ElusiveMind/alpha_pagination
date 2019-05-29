@@ -1,5 +1,12 @@
 <?php
 
+namespace Drupal\alpha_pagination;
+
+use Drupal\alpha_pagination\AlphaPagination;
+use Drupal\Component\Utility\NestedArray;
+use Drupal\Core\Utility\Token;
+use Drupal\Core\Url;
+
 /**
  * Class AlphaPaginationCharacter.
  */
@@ -50,7 +57,7 @@ class AlphaPaginationCharacter {
    * @param string $value
    *   The raw value of the character.
    */
-  public function __construct(\AlphaPagination $alpha_pagination, $label, $value) {
+  public function __construct(AlphaPagination $alpha_pagination, $label, $value) {
     $this->alphaPagination = $alpha_pagination;
     $this->label = $label;
     $this->value = $value;
@@ -79,7 +86,7 @@ class AlphaPaginationCharacter {
     else {
       $build = [
         '#type' => 'html_tag',
-        '#theme' => 'html_tag__alpha_pagination__inactive',
+//        '#theme' => 'html_tag__alpha_pagination__inactive',
         '#tag' => 'span',
         '#value' => $this->getLabel(),
       ];
@@ -99,23 +106,24 @@ class AlphaPaginationCharacter {
    */
   public function buildLink(array $options = []) {
     // Merge in options.
-    $options = drupal_array_merge_deep([
+    $options = NestedArray::mergeDeep([
       'attributes' => [],
       'html' => FALSE,
-      'query' => drupal_get_query_parameters(),
+      'query' => \Drupal::request()->query->all(),
     ], $options);
 
     // Merge in classes.
     $this->alphaPagination->addClasses($this->getOption('paginate_link_class'), $options['attributes']);
 
+    $token = \Drupal::service('token');
     $tokens = $this->alphaPagination->getTokens($this->getValue());
-    $path = token_replace($this->getOption('paginate_link_path'), $tokens);
-
+    $path = $token->replace($this->getOption('paginate_link_path'), $tokens);
     // Determine if link is external (automatically enforcing for anchors).
     if ($this->getOption('paginate_link_external') || ($path && $path[0] === '#')) {
       $options['external'] = TRUE;
+    }else{
+      $path = 'internal:/'.$path;
     }
-
     // Add in additional attributes.
     if ($this->getOption('paginate_link_attributes')) {
       $attributes = $this->alphaPagination->parseAttributes($this->getOption('paginate_link_attributes'), $tokens);
@@ -123,14 +131,15 @@ class AlphaPaginationCharacter {
       unset($attributes['class']);
 
       // Merge in the attributes.
-      $options['attributes'] = drupal_array_merge_deep($options['attributes'], $attributes);
+      $options['attributes'] = NestedArray::mergeDeep($options['attributes'], $attributes);
     }
 
     // Build link render array.
     return [
-      '#theme' => 'link__alpha_pagination',
-      '#text' => $this->getLabel(),
-      '#path' => $path,
+//      '#theme' => 'link__alpha_pagination',
+      '#type' => 'link',
+      '#title' => $this->getLabel(),
+      '#url' => Url::fromUri($path),
       '#options' => $options,
     ];
   }

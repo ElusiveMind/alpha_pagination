@@ -6,6 +6,15 @@
  */
 
 /**
+ * @defgroup alpha_pagination_api_hooks Alpha Pagination API Hooks
+ */
+
+/**
+ * @addtogroup hooks
+ * @{
+ */
+
+/**
  * Allows modules and themes to alter the alphabets array prior to rendering.
  *
  * Note: Do not use range(); always be explicit when defining an alphabet.
@@ -20,6 +29,7 @@
  *   The View instance.
  *
  * @see \views_handler_area_alpha_pagination::getAlphabet()
+ * @ingroup alpha_pagination_api_hooks
  */
 function hook_alpha_pagination_alphabet_alter(array &$alphabets, \views_handler_area_alpha_pagination $view) {
   // Remove Z from the list.
@@ -41,8 +51,13 @@ function hook_alpha_pagination_alphabet_alter(array &$alphabets, \views_handler_
  *   The View instance.
  *
  * @see \views_handler_area_alpha_pagination::getNumbers()
+ * @ingroup alpha_pagination_api_hooks
  */
 function hook_alpha_pagination_numbers_alter(array &$numbers, \views_handler_area_alpha_pagination $view) {
   // Remove 0 from the list.
   array_shift($numbers['en']);
 }
+
+/**
+ * @} End of "addtogroup hooks".
+ */
