@@ -2,9 +2,7 @@
 
 namespace Drupal\alpha_pagination;
 
-use Drupal\alpha_pagination\AlphaPagination;
 use Drupal\Component\Utility\NestedArray;
-use Drupal\Core\Utility\Token;
 use Drupal\Core\Url;
 
 /**
@@ -47,17 +45,17 @@ class AlphaPaginationCharacter {
    */
   protected $value;
 
-
   /**
    * AlphaPaginationCharacter constructor.
    *
-   * @param \AlphaPagination $alpha_pagination
+   * @param \Drupal\alpha_pagination\AlphaPagination $alpha_pagination
+   *   The pagination handler class.
    * @param string $label
    *   The human readable label of the character.
    * @param string $value
    *   The raw value of the character.
    */
-  public function __construct(AlphaPagination $alpha_pagination, $label, $value) {
+  public function __construct(AlphaPagination $alpha_pagination, string $label, string $value) {
     $this->alphaPagination = $alpha_pagination;
     $this->label = $label;
     $this->value = $value;
@@ -174,6 +172,7 @@ class AlphaPaginationCharacter {
    * Retrieves the set value for the character.
    *
    * @return string
+   *   The character value.
    */
   public function getValue() {
     return $this->value;
@@ -183,6 +182,7 @@ class AlphaPaginationCharacter {
    * Determines if character is currently active.
    *
    * @return bool
+   *   The acrive state.
    */
   public function isActive() {
     return $this->active;
@@ -192,6 +192,7 @@ class AlphaPaginationCharacter {
    * Determines if character is the "all" type.
    *
    * @return bool
+   *   TRUE when value is "all".
    */
   public function isAll() {
     return $this->getOption('paginate_all_value', 'all') === $this->value;
@@ -201,6 +202,7 @@ class AlphaPaginationCharacter {
    * Determines if character is currently enabled.
    *
    * @return bool
+   *   The enabled state.
    */
   public function isEnabled() {
     return $this->isAll() || $this->isActive() || $this->enabled;
@@ -210,6 +212,7 @@ class AlphaPaginationCharacter {
    * Determines if character should render as a link.
    *
    * @return bool
+   *   TRUE when the character should render as link.
    */
   public function isLink() {
     return !$this->active && ($this->isEnabled() || $this->isAll());
@@ -219,6 +222,7 @@ class AlphaPaginationCharacter {
    * Determines if character is numeric.
    *
    * @return bool
+   *   TRUE for numeric character type.
    */
   public function isNumeric() {
     return $this->alphaPagination->isNumeric($this->value);
@@ -227,26 +231,26 @@ class AlphaPaginationCharacter {
   /**
    * Sets whether character is enabled.
    *
-   * @param bool $enabled
-   *   TRUE or FALSE
+   * @param mixed $enabled
+   *   TRUE or FALSE.
    *
    * @return $this
    */
   public function setEnabled($enabled) {
-    $this->enabled = $enabled;
+    $this->enabled = (bool) $enabled;
     return $this;
   }
 
   /**
    * Sets whether character is active.
    *
-   * @param bool $active
-   *   TRUE or FALSE
+   * @param mixed $active
+   *   TRUE or FALSE.
    *
    * @return $this
    */
   public function setActive($active) {
-    $this->active = $active;
+    $this->active = (bool) $active;
     return $this;
   }
 

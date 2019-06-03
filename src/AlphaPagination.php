@@ -2,21 +2,19 @@
 
 namespace Drupal\alpha_pagination;
 
-use Drupal\views\Views;
-use Drupal\views\Plugin\views\ViewsHandlerInterface;
-use Drupal\Core\Database\Connection;
-use Drupal\Core\Cache\CacheBackendInterface;
-use Drupal\Core\Entity\EntityFieldManagerInterface;
-use Drupal\Core\Language\LanguageManagerInterface;
-use Drupal\Core\Language\LanguageInterface;
-use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\alpha_pagination\Plugin\views\area\AlphaPaginationArea;
 use Drupal\Component\Utility\Html;
 use Drupal\Component\Utility\Unicode;
-use Drupal\Core\Utility\Token;
 use Drupal\Component\Transliteration\TransliterationInterface;
 use Drupal\Component\Utility\Crypt;
-use Drupal\alpha_pagination\AlphaPaginationCharacter;
-//use Symfony\Component\DependencyInjection;
+use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Database\Connection;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Language\LanguageManagerInterface;
+use Drupal\Core\Utility\Token;
+use Drupal\views\Views;
+use Drupal\views\Plugin\views\ViewsHandlerInterface;
 
 /**
  * A base views handler for alpha pagination.
@@ -24,6 +22,8 @@ use Drupal\alpha_pagination\AlphaPaginationCharacter;
 class AlphaPagination {
 
   /**
+   * The AlphaPagination Views Handler.
+   *
    * @var \Drupal\views\Plugin\views\ViewsHandlerInterface
    */
   protected $handler;
@@ -33,12 +33,12 @@ class AlphaPagination {
    *
    * @var \Drupal\Core\Entity\EntityFieldManagerInterface
    */
-  protected $field_manager;
+  protected $fieldManager;
 
   /**
-   * The Language Interface.
+   * The Language ID.
    *
-   * @var \Drupal\Core\Language\LanguageInterface
+   * @var string
    */
   protected $language;
 
@@ -47,14 +47,14 @@ class AlphaPagination {
    *
    * @var \Drupal\Core\Extension\ModuleHandlerInterface
    */
-  protected $module_handler;
+  protected $moduleHandler;
 
   /**
    * The cache backend service.
    *
    * @var \Drupal\Core\Cache\CacheBackendInterface
    */
-  protected $cache_backend;
+  protected $cacheBackend;
 
   /**
    * The Transliteration Interface.
@@ -79,21 +79,23 @@ class AlphaPagination {
 
   /**
    * The url used for links.
+   *
+   * @var \Drupal\Core\Url
    */
   protected $url;
 
   /**
-   * @param \Drupal\views\Plugin\views\ViewsHandlerInterface $handler
-   *   The View handler interface.
-   * @param \Drupal\Core\Entity\EntityFieldManagerInterface
+   * Contructs the AlphaPagination object.
+   *
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $field_manager
    *   The Entity Field Manager Interface.
    * @param \Drupal\Core\Language\LanguageManagerInterface $language_manager
    *   The language manager service.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
-   *   The ModuleHander Intervace
+   *   The ModuleHander Interface.
    * @param \Drupal\Core\Cache\CacheBackendInterface $cache_backend
    *   The cache backend service.
-   * @param \Drupal\Component\Transliteration\PhpTransliteration $transliteration
+   * @param \Drupal\Component\Transliteration\TransliterationInterface $transliteration
    *   A PHPTransliteration object.
    * @param \Drupal\Core\Database\Connection $database
    *   The database connection.
@@ -101,16 +103,22 @@ class AlphaPagination {
    *   The token service.
    */
   public function __construct(EntityFieldManagerInterface $field_manager, LanguageManagerInterface $language_manager, ModuleHandlerInterface $module_handler, CacheBackendInterface $cache_backend, TransliterationInterface $transliteration, Connection $database, Token $token) {
-    $this->field_manager = $field_manager;
+    $this->fieldManager = $field_manager;
     $this->language = $language_manager->getCurrentLanguage()->getId();
-    $this->module_handler = $module_handler;
-    $this->cache_backend = $cache_backend;
+    $this->moduleHandler = $module_handler;
+    $this->cacheBackend = $cache_backend;
     $this->transliteration = $transliteration;
     $this->database = $database;
     $this->token = $token;
   }
 
-  public function setHandler($handler){
+  /**
+   * Sets the view handler.
+   *
+   * @param \Drupal\views\Plugin\views\ViewsHandlerInterface $handler
+   *   The views handler.
+   */
+  public function setHandler(ViewsHandlerInterface $handler) {
     $this->handler = $handler;
   }
 
@@ -118,7 +126,13 @@ class AlphaPagination {
    * {@inheritdoc}
    */
   public function __sleep() {
-    $this->_handler = implode(':', [$this->handler->view->id(), $this->handler->view->current_display, $this->handler->areaType, $this->handler->realField ?: $this->handler->field, $this->language]);
+    $this->_handler = implode(':', [
+      $this->handler->view->id(),
+      $this->handler->view->current_display,
+      $this->handler->areaType,
+      $this->handler->realField ?: $this->handler->field,
+      $this->language,
+    ]);
 
     return ['_handler'];
   }
@@ -128,7 +142,7 @@ class AlphaPagination {
    */
   public function __wakeup() {
     list($name, $display_id, $type, $id, $language) = explode(':', $this->_handler);
-    $view =  Views::getView($name);
+    $view = Views::getView($name);
     $view->setDisplay($display_id);
     $this->handler = $view->display_handler->getHandler($type, $id);
 
@@ -181,7 +195,7 @@ class AlphaPagination {
     static $build;
 
     if (!isset($build)) {
-      if ($this->module_handler->moduleExists('token')) {
+      if ($this->moduleHandler->moduleExists('token')) {
         $build = [
           '#type' => 'container',
           '#title' => t('Browse available tokens'),
@@ -278,7 +292,7 @@ class AlphaPagination {
     if (!isset($alphabets)) {
       // Attempt to retrieve from database cache.
       $cid = "alpha_pagination:alphabets";
-      if (($cache = $this->cache_backend->get($cid)) && !empty($cache->data)) {
+      if (($cache = $this->cacheBackend->get($cid)) && !empty($cache->data)) {
         $alphabets = $cache->data;
       }
       // Build alphabets.
@@ -293,10 +307,10 @@ class AlphaPagination {
         $alphabets['ru'] = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И', 'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ы', 'Э', 'Ю', 'Я'];
 
         // Allow modules and themes to alter alphabets.
-        $this->module_handler->alter('alpha_pagination_alphabet', $alphabets, $this);
+        $this->moduleHandler->alter('alpha_pagination_alphabet', $alphabets, $this);
 
         // Cache the alphabets.
-        $this->cache_backend->set($cid, $alphabets);
+        $this->cacheBackend->set($cid, $alphabets);
       }
     }
 
@@ -310,14 +324,14 @@ class AlphaPagination {
    * @param array $types
    *   The handler types to search.
    *
-   * @return \views_handler_area_alpha_pagination[]
+   * @return \Drupal\alpha_pagination\Plugin\views\area\AlphaPaginationArea[]
    *   An array of alpha pagination areas.
    */
   public function getAreaHandlers(array $types = ['header', 'footer']) {
     $areas = [];
     foreach ($types as $type) {
       foreach ($this->handler->displayHandler->getHandlers($type) as $handler) {
-        if ($handler instanceof \Drupal\alpha_pagination\Plugin\views\area\AlphaPaginationArea) {
+        if ($handler instanceof AlphaPaginationArea) {
           $areas[] = $handler;
         }
       }
@@ -328,12 +342,12 @@ class AlphaPagination {
   /**
    * Retrieves the characters used to populate the pagination item list.
    *
-   * @return \AlphaPaginationCharacter[]
+   * @return \Drupal\alpha_pagination\AlphaPaginationCharacter[]
    *   An associative array containing AlphaPaginationCharacter objects, keyed
    *   by its value.
    */
   public function getCharacters() {
-    /** @var \AlphaPaginationCharacter[] $characters */
+    /** @var \Drupal\alpha_pagination\AlphaPaginationCharacter[] $characters */
     static $characters;
 
     if (!isset($characters)) {
@@ -348,7 +362,7 @@ class AlphaPagination {
       // results set from it so that things can move quickly through here. We're
       // caching in the event the view has a very large result set.
       $cid = $this->getCid();
-      if (($cache = $this->cache_backend->get($cid)) && !empty($cache->data)) {
+      if (($cache = $this->cacheBackend->get($cid)) && !empty($cache->data)) {
         $characters = $cache->data;
       }
       else {
@@ -430,7 +444,7 @@ class AlphaPagination {
         }
 
         // Cache the results.
-        $this->cache_backend->set($cid, $characters);
+        $this->cacheBackend->set($cid, $characters);
       }
 
       // Default current value to "all", if enabled, or the first character.
@@ -492,18 +506,26 @@ class AlphaPagination {
     $query_parts = explode("\n", $this->getOption('query'));
 
     // Get the base field. This will change depending on the type of view we
-    // are putting the paginator on and eventually if we are using a relationship
-    // to access it.
+    // are putting the paginator on and eventually if we are using a
+    // relationship to access it.
     $relationship = $this->getOption('paginate_view_relationship');
     if ($relationship == 'none') {
       $base_field = $this->handler->view->storage->get('base_field');
-    } else {
-      // inspired from core/modules/views_ui/src/Form/Ajax/ConfigHandler.php buildForm
-      // further exploration needed when chaining relationships
+    }
+    else {
+      // Inspired from core/modules/views_ui/src/Form/Ajax/ConfigHandler.php
+      // buildForm further exploration needed when chaining relationships.
       $relationship_handler = $this->handler->view->getHandler($this->handler->view->current_display, 'relationship', $relationship);
       $data = Views::viewsData()->get($relationship_handler['table']);
-      if (isset($data[$relationship_handler['field']]['relationship']['base']) && $this->handler->view->storage->get('base_table') == $data[$relationship_handler['field']]['relationship']['base']) {
-        $base_field = implode('_', [$data[$relationship_handler['field']]['relationship']['base'], $relationship_handler['table'], $data[$relationship_handler['field']]['relationship']['base field']]);
+      if (
+        isset($data[$relationship_handler['field']]['relationship']['base']) &&
+        $this->handler->view->storage->get('base_table') == $data[$relationship_handler['field']]['relationship']['base']
+      ) {
+        $base_field = implode('_', [
+          $data[$relationship_handler['field']]['relationship']['base'],
+          $relationship_handler['table'],
+          $data[$relationship_handler['field']]['relationship']['base field'],
+        ]);
       }
     }
     // If we are dealing with a substring, then short circuit it as we are most
@@ -525,7 +547,7 @@ class AlphaPagination {
 
     // Construct the query from the array and change the single quotes from
     // HTML special characters back into single quotes.
-    $query = join("\n", $query_parts);
+    $query = implode("\n", $query_parts);
     $query = str_replace("&#039;", '\'', $query);
     $query = str_replace("&amp;", '&', $query);
     $query = str_replace("&lt;", '<', $query);
@@ -565,7 +587,7 @@ class AlphaPagination {
 
           // Extract the "name" field from the entity property info.
           $entity_type = $this->handler->view->getBaseEntityType->id();
-          $entity_info = $this->field_manager->getBaseFieldDefinitions($entity_type);
+          $entity_info = $this->fieldManager->getBaseFieldDefinitions($entity_type);
           $field = isset($entity_info['properties']['name']['schema field']) ? $entity_info['properties']['name']['schema field'] : 'name';
           break;
 
@@ -575,19 +597,19 @@ class AlphaPagination {
 
           // Extract the "title" field from the entity property info.
           $entity_type = $this->handler->view->getBaseEntityType()->id();
-          $entity_info = $this->field_manager->getBaseFieldDefinitions($entity_type);
+          $entity_info = $this->fieldManager->getBaseFieldDefinitions($entity_type);
           $field = isset($entity_info['properties']['title']['schema field']) ? $entity_info['properties']['title']['schema field'] : 'title';
           break;
 
         default:
           if (strpos($this->getOption('paginate_view_field'), ':') === FALSE) {
-            // Format field name and table for single value fields
+            // Format field name and table for single value fields.
             list($entityType, $field_name) = explode('__', $this->getOption('paginate_view_field'), 2);
             $field = $field_name . '_value';
             $table = $this->getOption('paginate_view_field');
           }
           else {
-            // Format field name and table for compound value fields
+            // Format field name and table for compound value fields.
             list($entityType, $field_name) = explode('__', $this->getOption('paginate_view_field'), 2);
             $field = str_replace(':', '_', $field_name);
             $field_name_components = explode(':', $field_name);
@@ -609,7 +631,7 @@ class AlphaPagination {
   /**
    * Retrieves the proper label for a character.
    *
-   * @param $value
+   * @param mixed $value
    *   The value of the label to retrieve.
    *
    * @return string
@@ -660,7 +682,7 @@ class AlphaPagination {
     if (!isset($numbers)) {
       // Attempt to retrieve from database cache.
       $cid = "alpha_pagination:numbers";
-      if (($cache = $this->cache_backend->get($cid)) && !empty($cache->data)) {
+      if (($cache = $this->cacheBackend->get($cid)) && !empty($cache->data)) {
         $numbers = $cache->data;
       }
       // Build numbers.
@@ -669,10 +691,10 @@ class AlphaPagination {
         $numbers['en'] = $default;
 
         // Allow modules and themes to alter numbers.
-        $this->module_handler->alter('alpha_pagination_numbers', $numbers, $this);
+        $this->moduleHandler->alter('alpha_pagination_numbers', $numbers, $this);
 
         // Cache the numbers.
-        $this->cache_backend->set($cid, $numbers);
+        $this->cacheBackend->set($cid, $numbers);
       }
     }
 
@@ -750,8 +772,11 @@ class AlphaPagination {
       if (empty($path) || (empty($args) && strpos($path, '%') === FALSE)) {
         $path = \Drupal::service('path.current')->getPath();
         $pieces = explode('/', $path);
-        // if getPath returns heading slash, remove it as it will ba added later
-        if ($pieces[0] == '') array_shift($pieces);
+        // If getPath returns heading slash, remove it as it will ba
+        // added later.
+        if ($pieces[0] == '') {
+          array_shift($pieces);
+        }
         if (array_key_exists(end($pieces), $this->getCharacters())) {
           array_pop($pieces);
         }
@@ -773,9 +798,9 @@ class AlphaPagination {
               $pieces[] = $this->handler->view->argument[$id]->options['exception']['value'];
             }
             else {
-              $pieces[] = '*'; // gotta put something if there just isn't one.
+              // Gotta put something if there just isn't one.
+              $pieces[] = '*';
             }
-
           }
           else {
             $pieces[] = array_shift($args);
@@ -796,7 +821,7 @@ class AlphaPagination {
   /**
    * Retrieves the proper value for a character.
    *
-   * @param $value
+   * @param mixed $value
    *   The value to retrieve.
    *
    * @return string
