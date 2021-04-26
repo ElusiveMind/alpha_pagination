@@ -84,13 +84,13 @@ class AlphaPaginationCharacter {
     else {
       $build = [
         '#type' => 'html_tag',
-//        '#theme' => 'html_tag__alpha_pagination__inactive',
+        // '#theme' => 'html_tag__alpha_pagination__inactive',
         '#tag' => 'span',
         '#value' => $this->getLabel(),
       ];
     }
 
-    return $render ? drupal_render($build) : $build;
+    return $render ? \Drupal::service('renderer')->render($build) : $build;
   }
 
   /**

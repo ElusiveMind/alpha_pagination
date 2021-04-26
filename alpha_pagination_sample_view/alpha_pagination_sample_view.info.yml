@@ -2,6 +2,7 @@ name: 'Alpha Pagination Sample View'
 description: 'A sample usage view for the Alpha Pagination module.'
 type: module
 core: 8.x
+core_version_requirement: ^8 || ^9
 dependencies:
   - drupal:views
   - alpha_pagination:alpha_pagination

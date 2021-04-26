@@ -174,7 +174,7 @@ class AlphaPaginationArea extends AreaPluginBase {
       'translatable' => FALSE,
     ];
     $options['paginate_numeric_divider_class'] = [
-      'default' => 'numeric-divider',
+      'default' => '-',
       'translatable' => FALSE,
     ];
     $options['paginate_numeric_hide_empty'] = [
@@ -241,6 +241,7 @@ class AlphaPaginationArea extends AreaPluginBase {
     foreach ($all_fields[$baseEntityType] as $field_name => $field_definition) {
       if (in_array($field_definition['type'], $all_field_types)) {
         if (in_array($field_definition['type'], $compound_field_types)) {
+          $field_info = FieldStorageConfig::loadByName('node', $field_name);
           $field_info = field_info_field($field_name);
           foreach (array_keys($field_info['columns']) as $compoundFieldKey) {
             $compound_field_field_name = sprintf('%s:%s', $field_name, $compoundFieldKey);
@@ -520,10 +521,10 @@ class AlphaPaginationArea extends AreaPluginBase {
     ];
 
     $form['paginate_numeric_divider_class'] = [
-      '#title' => t('Divider class'),
+      '#title' => t('Divider Text'),
       '#type' => 'textfield',
       '#default_value' => $this->alphaPagination->getOption('paginate_numeric_divider_class'),
-      '#description' => t('The class to use for the numeric divider list item.'),
+      '#description' => t('Text to use to separate numeric options from alphabetic.'),
       '#fieldset' => 'paginate_numeric_options',
       '#states' => [
         'visible' => [

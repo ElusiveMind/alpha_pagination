@@ -38,13 +38,10 @@ function alpha_pagination_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<li>' . t("An optional sample view is included and can be enabled via the alpha_pagination_example view. The sample relies on the \'article\' default content type. You can create sample content using the devel module or rely on your own data.") . '</li>';
       $output .= '</ol>';
       $output .= '<div style="border-top: 2px solid #f8981d; margin: 15px 0px; width: 100%"></div>';
-      $output .= '<h4>' . t('Additional Style Optiona') . '</h4>';
+      $output .= '<h4>' . t('Additional Style Optional') . '</h4>';
       $output .= t('In addition, you can specify the CSS style classes around the paginator, the item list and each item whether or not it is active or inactive. This includes the ability to set a class for linked items (as opposed to items to which have no options and therefor no links).') . '<br /><br />';
       $output .= t('Furthermore, you can add an "ALL" item as well as numeric items and specify their positions in navigation, the label and their respective css class as well.');
       $output .= '<div style="border-top: 2px solid #f8981d; margin: 15px 0px; padding-top: 15px; width: 100%; font-size: 8pt; line-height: 1.3em;">';
-      $output .= '<img src="/' . drupal_get_path('module', 'alpha_pagination') . '/images/flyingflip-logo.png" width="151" height="50" alt="FlyingFlip Studios" align="right" /><br />';
-      $output .= 'Released 2016 - v7.x-1.x - FlyingFlip Studios, LLC. - Released under GNU GENERAL PUBLIC LICENSE - Version 2, June 1991<br />http://www.flyingflip.com - @flyingflip - @mbagnall17<br clear="right">';
-      $output .= '<style>.item-list, hr { display: none; }</style></div>';
       break;
 
     default:

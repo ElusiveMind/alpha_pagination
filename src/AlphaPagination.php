@@ -4,7 +4,6 @@ namespace Drupal\alpha_pagination;
 
 use Drupal\alpha_pagination\Plugin\views\area\AlphaPaginationArea;
 use Drupal\Component\Utility\Html;
-use Drupal\Component\Utility\Unicode;
 use Drupal\Component\Transliteration\TransliterationInterface;
 use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Cache\CacheBackendInterface;
@@ -552,6 +551,7 @@ class AlphaPagination {
     $query = str_replace("&amp;", '&', $query);
     $query = str_replace("&lt;", '<', $query);
     $query = str_replace("&gt;", '>', $query);
+    $query = str_replace("&quot;", '', $query);
 
     // Based on our query, get the list of entity identifiers that are affected.
     // These will be used to generate the pagination items.
@@ -622,7 +622,7 @@ class AlphaPagination {
                           FROM {' . $table . '}
                           WHERE ' . $where . ' IN ( :nids[] )', [':nids[]' => $entity_ids]);
       while ($data = $result->fetchObject()) {
-        $prefixes[] = is_numeric($data->prefix) ? $data->prefix : Unicode::strtoupper($this->transliteration->transliterate($data->prefix));
+        $prefixes[] = is_numeric($data->prefix) ? $data->prefix : mb_strtoupper($this->transliteration->transliterate($data->prefix));
       }
     }
     return array_unique(array_filter($prefixes));
