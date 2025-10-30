@@ -3,17 +3,17 @@
 namespace Drupal\alpha_pagination;
 
 use Drupal\alpha_pagination\Plugin\views\area\AlphaPaginationArea;
-use Drupal\Component\Utility\Html;
 use Drupal\Component\Transliteration\TransliterationInterface;
 use Drupal\Component\Utility\Crypt;
+use Drupal\Component\Utility\Html;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Utility\Token;
-use Drupal\views\Views;
 use Drupal\views\Plugin\views\ViewsHandlerInterface;
+use Drupal\views\Views;
 
 /**
  * A base views handler for alpha pagination.
@@ -124,8 +124,13 @@ class AlphaPagination {
   /**
    * {@inheritdoc}
    */
+  protected $handlerString;
+
+  /**
+   * {@inheritdoc}
+   */
   public function __sleep() {
-    $this->_handler = implode(':', [
+    $this->handlerString = implode(':', [
       $this->handler->view->id(),
       $this->handler->view->current_display,
       $this->handler->areaType,
@@ -133,20 +138,20 @@ class AlphaPagination {
       $this->language,
     ]);
 
-    return ['_handler'];
+    return ['handlerString'];
   }
 
   /**
    * {@inheritdoc}
    */
   public function __wakeup() {
-    list($name, $display_id, $type, $id, $language) = explode(':', $this->_handler);
+    [$name, $display_id, $type, $id, $language] = explode(':', $this->handlerString);
     $view = Views::getView($name);
     $view->setDisplay($display_id);
     $this->handler = $view->display_handler->getHandler($type, $id);
 
     $this->language = $language;
-    unset($this->_handler);
+    unset($this->handlerString);
   }
 
   /**
@@ -242,7 +247,6 @@ class AlphaPagination {
    */
   public function ensureQuery() {
     if (!$this->getOption('query') && !empty($this->handler->view->build_info['query'])) {
-      /** @var \SelectQuery $query */
       $query = $this->handler->view->build_info['query'];
       $quoted = $query->getArguments();
       foreach ($quoted as $key => $val) {
@@ -279,7 +283,10 @@ class AlphaPagination {
   public function getAlphabet($langcode = NULL) {
 
     // Default (English).
-    static $default = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+    static $default = [
+      'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+      'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    ];
     static $alphabets;
 
     // If the langcode is not explicitly specified, default to global langcode.
@@ -297,13 +304,20 @@ class AlphaPagination {
       // Build alphabets.
       else {
         // Arabic.
-        $alphabets['ar'] = ['ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'و', 'ه', 'ي'];
+        $alphabets['ar'] = [
+          'ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص',
+          'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'و', 'ه', 'ي',
+        ];
 
         // English. Initially the default value, but can be modified in alter.
         $alphabets['en'] = $default;
 
         // Русский (Russian).
-        $alphabets['ru'] = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И', 'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ы', 'Э', 'Ю', 'Я'];
+        $alphabets['ru'] = [
+          'А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И', 'Й', 'К', 'Л', 'М',
+          'Н', 'О', 'П', 'Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ы',
+          'Э', 'Ю', 'Я',
+        ];
 
         // Allow modules and themes to alter alphabets.
         $this->moduleHandler->alter('alpha_pagination_alphabet', $alphabets, $this);
@@ -314,7 +328,7 @@ class AlphaPagination {
     }
 
     // Return alphabet based on langcode.
-    return isset($alphabets[$langcode]) ? $alphabets[$langcode] : $default;
+    return $alphabets[$langcode] ?? $default;
   }
 
   /**
@@ -588,7 +602,7 @@ class AlphaPagination {
           // Extract the "name" field from the entity property info.
           $entity_type = $this->handler->view->getBaseEntityType->id();
           $entity_info = $this->fieldManager->getBaseFieldDefinitions($entity_type);
-          $field = isset($entity_info['properties']['name']['schema field']) ? $entity_info['properties']['name']['schema field'] : 'name';
+          $field = $entity_info['properties']['name']['schema field'] ?? 'name';
           break;
 
         case 'title':
@@ -598,19 +612,19 @@ class AlphaPagination {
           // Extract the "title" field from the entity property info.
           $entity_type = $this->handler->view->getBaseEntityType()->id();
           $entity_info = $this->fieldManager->getBaseFieldDefinitions($entity_type);
-          $field = isset($entity_info['properties']['title']['schema field']) ? $entity_info['properties']['title']['schema field'] : 'title';
+          $field = $entity_info['properties']['title']['schema field'] ?? 'title';
           break;
 
         default:
           if (strpos($this->getOption('paginate_view_field'), ':') === FALSE) {
             // Format field name and table for single value fields.
-            list($entityType, $field_name) = explode('__', $this->getOption('paginate_view_field'), 2);
+            [, $field_name] = explode('__', $this->getOption('paginate_view_field'), 2);
             $field = $field_name . '_value';
             $table = $this->getOption('paginate_view_field');
           }
           else {
             // Format field name and table for compound value fields.
-            list($entityType, $field_name) = explode('__', $this->getOption('paginate_view_field'), 2);
+            [, $field_name] = explode('__', $this->getOption('paginate_view_field'), 2);
             $field = str_replace(':', '_', $field_name);
             $field_name_components = explode(':', $field_name);
             $table = $field_name_components[0];
@@ -699,7 +713,7 @@ class AlphaPagination {
     }
 
     // Return numbers based on langcode.
-    return isset($numbers[$langcode]) ? $numbers[$langcode] : $default;
+    return $numbers[$langcode] ?? $default;
   }
 
   /**
@@ -714,7 +728,7 @@ class AlphaPagination {
    *   The option value or $default if not set.
    */
   public function getOption($name, $default = '') {
-    return (string) (isset($this->handler->options[$name]) ? $this->handler->options[$name] : $default);
+    return (string) ($this->handler->options[$name] ?? $default);
   }
 
   /**
@@ -760,7 +774,7 @@ class AlphaPagination {
       // Exclude arguments that were computed, not passed on the URL.
       $position = 0;
       if (!empty($this->handler->view->argument)) {
-        foreach ($this->handler->view->argument as $argument_id => $argument) {
+        foreach ($this->handler->view->argument as $argument) {
           if (!empty($argument->options['default_argument_skip_url'])) {
             unset($args[$position]);
           }
@@ -872,7 +886,7 @@ class AlphaPagination {
       $parts = explode(',', $string);
       foreach ($parts as $attribute) {
         if (strpos($attribute, '|') !== FALSE) {
-          list($key, $value) = explode('|', $this->token->replace($attribute, $tokens, ['clear' => TRUE]));
+          [$key, $value] = explode('|', $this->token->replace($attribute, $tokens, ['clear' => TRUE]));
           $attributes[$key] = $value;
         }
       }

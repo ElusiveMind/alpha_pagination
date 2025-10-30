@@ -6,7 +6,7 @@ use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Url;
 
 /**
- * Class AlphaPaginationCharacter.
+ * The AlphaPagination character.
  */
 class AlphaPaginationCharacter {
 
@@ -44,6 +44,13 @@ class AlphaPaginationCharacter {
    * @var string
    */
   protected $value;
+
+  /**
+   * The renderer.
+   *
+   * @var \Drupal\Core\Render\RendererInterface
+   */
+  protected $renderer;
 
   /**
    * AlphaPaginationCharacter constructor.
@@ -90,7 +97,7 @@ class AlphaPaginationCharacter {
       ];
     }
 
-    return $render ? \Drupal::service('renderer')->render($build) : $build;
+    return $render ? $this->renderer->render($build) : $build;
   }
 
   /**
@@ -119,8 +126,9 @@ class AlphaPaginationCharacter {
     // Determine if link is external (automatically enforcing for anchors).
     if ($this->getOption('paginate_link_external') || ($path && $path[0] === '#')) {
       $options['external'] = TRUE;
-    }else{
-      $path = 'internal:/'.$path;
+    }
+    else {
+      $path = 'internal:/' . $path;
     }
     // Add in additional attributes.
     if ($this->getOption('paginate_link_attributes')) {
@@ -134,7 +142,7 @@ class AlphaPaginationCharacter {
 
     // Build link render array.
     return [
-//      '#theme' => 'link__alpha_pagination',
+      // '#theme' => 'link__alpha_pagination',
       '#type' => 'link',
       '#title' => $this->getLabel(),
       '#url' => Url::fromUri($path),
@@ -146,6 +154,7 @@ class AlphaPaginationCharacter {
    * Retrieves the set label for the character.
    *
    * @return string
+   *   The character label.
    */
   public function getLabel() {
     return $this->label;

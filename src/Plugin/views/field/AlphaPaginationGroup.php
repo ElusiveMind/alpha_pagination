@@ -18,7 +18,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * @ViewsField("alpha_pagination_group")
  */
-class AlphaPaginationGroup extends FieldPluginBase {
+final class AlphaPaginationGroup extends FieldPluginBase {
 
   /**
    * The AlphaPagination object reference.
@@ -59,7 +59,7 @@ class AlphaPaginationGroup extends FieldPluginBase {
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
-    return new static(
+    return new self(
       $configuration,
       $plugin_id,
       $plugin_definition,
@@ -115,7 +115,7 @@ class AlphaPaginationGroup extends FieldPluginBase {
 
     $this->alphaPagination->setHandler($areas[0]);
     $path = $this->alphaPagination->getOption('paginate_link_path');
-    list($entityType, $field_name) = explode('__', $this->alphaPagination->getOption('paginate_view_field'), 2);
+    [, $field_name] = explode('__', $this->alphaPagination->getOption('paginate_view_field'), 2);
     if (!isset($this->view->field[$field_name])) {
       return '';
     }
