@@ -135,10 +135,9 @@ class AlphaPagination {
       $connection = Database::getConnection();
       foreach ($quoted as $key => $val) {
         if (is_array($val)) {
-          $quoted[$key] = implode(', ', array_map([
-            $connection,
-            'quote',
-          ], $val));
+          $quoted[$key] = implode(', ', array_map(function ($v) use ($connection) {
+            return $connection->quote($v);
+          }, $val));
         }
         else {
           $quoted[$key] = $connection->quote($val);
