@@ -242,8 +242,8 @@ final class AlphaPaginationArea extends AreaPluginBase {
     foreach ($all_fields[$baseEntityType] as $field_name => $field_definition) {
       if (in_array($field_definition['type'], $all_field_types)) {
         if (in_array($field_definition['type'], $compound_field_types)) {
-          $field_info = FieldStorageConfig::loadByName('node', $field_name);
-          foreach (array_keys($field_info['columns']) as $compoundFieldKey) {
+          $field_info = FieldStorageConfig::loadByName($baseEntityType, $field_name);
+          foreach (array_keys($field_info->getColumns()) as $compoundFieldKey) {
             $compound_field_field_name = sprintf('%s:%s', $field_name, $compoundFieldKey);
             $fields[$baseEntityType . '__' . $compound_field_field_name] = $compound_field_field_name;
           }

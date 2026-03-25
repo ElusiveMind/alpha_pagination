@@ -3,7 +3,6 @@
 namespace Drupal\alpha_pagination\Plugin\views\field;
 
 use Drupal\alpha_pagination\AlphaPagination;
-use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
 use Drupal\Core\Utility\Token;
@@ -129,7 +128,7 @@ final class AlphaPaginationGroup extends FieldPluginBase {
     }
 
     // Return just the first character of the value.
-    $value = $this->alphaPagination->getValue(!empty($field->last_render) ? Unicode::ucfirst(substr(strip_tags($field->last_render), 0, 1)) : '');
+    $value = $this->alphaPagination->getValue(!empty($field->last_render) ? mb_strtoupper(substr(strip_tags($field->last_render), 0, 1)) : '');
     $label = $this->alphaPagination->getLabel($value);
 
     // Prepend an anchor if the link path starts with #. Using the "link"

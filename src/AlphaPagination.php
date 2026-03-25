@@ -251,10 +251,7 @@ class AlphaPagination {
       $quoted = $query->getArguments();
       foreach ($quoted as $key => $val) {
         if (is_array($val)) {
-          $quoted[$key] = implode(', ', array_map([
-            $this->database,
-            'quote',
-          ], $val));
+          $quoted[$key] = implode(', ', array_map(fn($v) => $this->database->quote($v), $val));
         }
         else {
           $quoted[$key] = $this->database->quote($val);
@@ -600,7 +597,7 @@ class AlphaPagination {
           $where = $this->handler->view->storage->get('base_field');
 
           // Extract the "name" field from the entity property info.
-          $entity_type = $this->handler->view->getBaseEntityType->id();
+          $entity_type = $this->handler->view->getBaseEntityType()->id();
           $entity_info = $this->fieldManager->getBaseFieldDefinitions($entity_type);
           $field = $entity_info['properties']['name']['schema field'] ?? 'name';
           break;

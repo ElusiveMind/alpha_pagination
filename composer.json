@@ -12,6 +12,9 @@
         "role": "Developer"
       }
     ],
+  "require": {
+    "php": ">=7.4"
+  },
   "support": {
     "issues": "https://www.drupal.org/project/issues/alpha_pagination",
     "source": "https://git.drupalcode.org/project/alpha_pagination"
